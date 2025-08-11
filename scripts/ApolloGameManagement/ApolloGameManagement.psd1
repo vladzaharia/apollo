@@ -74,10 +74,7 @@ FunctionsToExport = @(
     'Write-ApolloLog',
     'Start-ApolloGameTracking',
     'Stop-ApolloGameProcesses',
-    'Get-ApolloConfiguration',
-    'Set-ApolloConfiguration',
-    'Test-ApolloEnvironment',
-    'Initialize-ApolloEnvironment'
+    'Get-ApolloConfiguration'
 )
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
@@ -117,13 +114,13 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
-Version 1.0.0
-- Initial release
-- Intelligent game process tracking and cleanup
-- Apollo context integration
-- Configuration management
-- Comprehensive logging system
-- Security and performance optimizations
+Version 1.0.0 - Production Release
+- Core game process tracking and cleanup functionality
+- Apollo global prep commands integration
+- Streamlined configuration management
+- Production-ready logging system
+- Optimized for performance and security
+- All setup and migration components removed
 '@
 
         # Prerelease string of this module

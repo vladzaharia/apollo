@@ -46,8 +46,7 @@ function Get-ApolloConfiguration {
         - APOLLO_CONFIG_PATH: Custom configuration file path
 
     .LINK
-        Set-ApolloConfiguration
-        Test-ApolloEnvironment
+        Get-ApolloContext
     #>
     
     [CmdletBinding()]

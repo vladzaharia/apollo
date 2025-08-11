@@ -78,14 +78,6 @@ PowerShell module providing:
 - Comprehensive logging
 - Configuration management
 
-## 🚀 Migration from Previous System
-
-The system has been automatically upgraded:
-- ✅ Removed legacy scripts (`Start-ProcessTracking.ps1`, `Stop-TrackedProcesses.ps1`)
-- ✅ Removed testing components (`Test-ApolloGameManagement.ps1`)
-- ✅ Removed setup scripts (`Initialize-ApolloEnvironment.ps1`)
-- ✅ Updated all 75 apps to use global prep commands
-- ✅ Created global configuration in `apollo.conf`
 
 ## 🔍 Troubleshooting
 
