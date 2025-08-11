@@ -1,205 +1,217 @@
-# Smart-GameCleanup.ps1
-# Unified script for intelligent game process management
-# Handles both tracking (prep) and cleanup (undo) operations
-# Uses Apollo environment variables for enhanced context awareness
+<#
+.SYNOPSIS
+    Apollo Game Management - Intelligent process tracking and cleanup orchestrator.
 
+.DESCRIPTION
+    Unified script for intelligent game process management in Apollo streaming environment.
+    Handles both tracking (prep) and cleanup (undo) operations using the ApolloGameManagement module.
+
+    This script serves as the main entry point for Apollo game process management,
+    providing a simplified interface to the comprehensive functionality in the module.
+
+.PARAMETER Action
+    Specifies the action to perform:
+    - "track": Start process tracking for game launch (prep command)
+    - "cleanup": Stop game processes intelligently (undo command)
+
+.PARAMETER GameName
+    Name of the game to track or clean up. If not specified, attempts to use Apollo environment context.
+
+.PARAMETER FallbackProcesses
+    Array of process names to use as fallback if no tracked or detected processes are found during cleanup.
+
+.PARAMETER TrackingDurationSeconds
+    Duration in seconds to monitor for new processes during tracking. Default is from configuration.
+
+.PARAMETER GraceTimeoutSeconds
+    Time to wait for graceful process termination before force killing during cleanup. Default is from configuration.
+
+.PARAMETER Force
+    For cleanup: Skip graceful termination and immediately force kill processes.
+    For tracking: Overwrite existing tracking data for the same game.
+
+.PARAMETER WhatIf
+    Show what would be done without actually performing the action.
+
+.PARAMETER PassThru
+    Return operation results as output.
+
+.EXAMPLE
+    .\Smart-GameCleanup.ps1 -Action track -GameName "Cyberpunk 2077"
+
+.EXAMPLE
+    .\Smart-GameCleanup.ps1 -Action cleanup -GameName "Elden Ring"
+
+.EXAMPLE
+    .\Smart-GameCleanup.ps1 -Action cleanup -FallbackProcesses @("game.exe", "launcher.exe")
+
+.NOTES
+    Requires the ApolloGameManagement PowerShell module.
+    Requires elevated privileges for comprehensive process management.
+
+    Version: 2.0.0
+    Author: Apollo Game Management System
+
+.LINK
+    Start-ApolloGameTracking
+    Stop-ApolloGameProcesses
+    Get-ApolloContext
+#>
+
+[CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
+[OutputType([PSCustomObject])]
 param(
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory)]
     [ValidateSet("track", "cleanup")]
     [string]$Action,
 
-    [string]$GameName,
+    [Parameter()]
+    [ValidateNotNullOrEmpty()]
+    [string]$GameName = '',
+
+    [Parameter()]
     [string[]]$FallbackProcesses = @(),
-    [int]$TrackingDurationSeconds = 60,
-    [int]$GraceTimeoutSeconds = 10,
-    [switch]$Verbose,
-    [string]$LogFile = ""
+
+    [Parameter()]
+    [ValidateRange(10, 300)]
+    [int]$TrackingDurationSeconds = 0,
+
+    [Parameter()]
+    [ValidateRange(1, 60)]
+    [int]$GraceTimeoutSeconds = 0,
+
+    [Parameter()]
+    [switch]$Force,
+
+    [Parameter()]
+    [switch]$PassThru
 )
 
+# Script initialization
+$ErrorActionPreference = 'Stop'
 $ScriptDir = Split-Path $MyInvocation.MyCommand.Path -Parent
-$TrackingScript = Join-Path $ScriptDir "Start-ProcessTracking.ps1"
-$CleanupScript = Join-Path $ScriptDir "Stop-TrackedProcesses.ps1"
+$ModulePath = Join-Path $ScriptDir "ApolloGameManagement"
 
-# Set up log file path
-if (-not $LogFile) {
-    $LogsDir = Join-Path $ScriptDir "logs"
-    if (-not (Test-Path $LogsDir)) {
-        New-Item -ItemType Directory -Path $LogsDir -Force | Out-Null
+# Import the ApolloGameManagement module
+try {
+    if (Get-Module -Name "ApolloGameManagement" -ListAvailable -ErrorAction SilentlyContinue) {
+        Import-Module "ApolloGameManagement" -Force
     }
-    $LogFile = Join-Path $LogsDir "Smart-GameCleanup.log"
+    elseif (Test-Path $ModulePath) {
+        Import-Module $ModulePath -Force
+    }
+    else {
+        throw "ApolloGameManagement module not found. Please ensure the module is installed or available in the script directory."
+    }
+
+    Write-Verbose "Successfully imported ApolloGameManagement module"
+}
+catch {
+    Write-Error "Failed to import ApolloGameManagement module: $($_.Exception.Message)" -ErrorAction Stop
 }
 
-# Log rotation function
-function Rotate-LogFile {
-    param([string]$LogPath)
+# Check for elevated privileges
+try {
+    $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+    $isElevated = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
-    if (Test-Path $LogPath) {
-        $logInfo = Get-Item $LogPath
-        # Rotate if log file is larger than 10MB
-        if ($logInfo.Length -gt 10MB) {
-            $rotatedLog = $LogPath -replace '\.log$', "_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
-            try {
-                Move-Item -Path $LogPath -Destination $rotatedLog -Force
-                # Keep only the last 5 rotated logs
-                $rotatedLogs = Get-ChildItem -Path (Split-Path $LogPath) -Filter "*_*.log" | Sort-Object LastWriteTime -Descending
-                if ($rotatedLogs.Count -gt 5) {
-                    $rotatedLogs[5..($rotatedLogs.Count-1)] | Remove-Item -Force
-                }
-            } catch {
-                # If rotation fails, continue silently
-            }
-        }
+    if (-not $isElevated) {
+        Write-Warning "Running without elevated privileges. Process management may be limited."
+        Write-ApolloLog -Message "Script running without elevated privileges" -Level "WARN" -Category "Initialization"
+    }
+    else {
+        Write-Verbose "Running with elevated privileges"
+        Write-ApolloLog -Message "Script running with elevated privileges" -Level "INFO" -Category "Initialization"
     }
 }
-
-function Get-ApolloContext {
-    # Get Apollo environment variables for enhanced context
-    $context = @{
-        AppName = $env:APOLLO_APP_NAME
-        AppUUID = $env:APOLLO_APP_UUID
-        AppStatus = $env:APOLLO_APP_STATUS
-        ClientName = $env:APOLLO_CLIENT_NAME
-        ClientUUID = $env:APOLLO_CLIENT_UUID
-        ClientWidth = $env:APOLLO_CLIENT_WIDTH
-        ClientHeight = $env:APOLLO_CLIENT_HEIGHT
-        ClientFPS = $env:APOLLO_CLIENT_FPS
-    }
-
-    return $context
-}
-
-function Write-Log {
-    param([string]$Message, [string]$Level = "INFO")
-
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $apolloContext = Get-ApolloContext
-    $contextInfo = ""
-    if ($apolloContext.AppName) {
-        $contextInfo = " [App: $($apolloContext.AppName)] [Status: $($apolloContext.AppStatus)]"
-    }
-
-    $logMessage = "[$timestamp] [$Level]$contextInfo Smart-GameCleanup: $Message"
-
-    # Always write to log file
-    try {
-        Add-Content -Path $LogFile -Value $logMessage -Encoding UTF8
-    } catch {
-        # If log file write fails, continue silently to avoid breaking game launches
-    }
-
-    # Write to console if verbose or error
-    if ($Verbose -or $Level -eq "ERROR") {
-        Write-Host $logMessage
-    }
-}
-
-function Start-GameTracking {
-    param([string]$GameName, [int]$Duration)
-    
-    Write-Log "Starting process tracking for: $GameName"
-    
-    if (-not (Test-Path $TrackingScript)) {
-        Write-Log "Tracking script not found: $TrackingScript" "ERROR"
-        return $false
-    }
-    
-    try {
-        $params = @{
-            GameName = $GameName
-            TrackingDurationSeconds = $Duration
-            LogFile = $LogFile
-        }
-
-        if ($Verbose) { $params.Verbose = $true }
-
-        & $TrackingScript @params
-        Write-Log "Process tracking completed for: $GameName"
-        return $true
-    } catch {
-        Write-Log "Error during process tracking: $($_.Exception.Message)" "ERROR"
-        return $false
-    }
-}
-
-function Stop-GameProcesses {
-    param([string]$GameName, [string[]]$Fallbacks, [int]$GraceTimeout)
-    
-    Write-Log "Starting intelligent cleanup for: $GameName"
-    
-    if (-not (Test-Path $CleanupScript)) {
-        Write-Log "Cleanup script not found: $CleanupScript" "ERROR"
-        return $false
-    }
-    
-    try {
-        $params = @{
-            GameName = $GameName
-            GraceTimeoutSeconds = $GraceTimeout
-            LogFile = $LogFile
-        }
-
-        if ($Fallbacks -and $Fallbacks.Count -gt 0) {
-            $params.FallbackProcesses = $Fallbacks
-        }
-
-        if ($Verbose) { $params.Verbose = $true }
-
-        & $CleanupScript @params
-        Write-Log "Intelligent cleanup completed for: $GameName"
-        return $true
-    } catch {
-        Write-Log "Error during cleanup: $($_.Exception.Message)" "ERROR"
-        return $false
-    }
+catch {
+    Write-Warning "Failed to check elevation status: $($_.Exception.Message)"
 }
 
 # Main execution
-# Rotate log file if needed
-Rotate-LogFile -LogPath $LogFile
+try {
+    # Get Apollo context for logging
+    $apolloContext = Get-ApolloContext
 
-$apolloContext = Get-ApolloContext
+    # Resolve game name if not provided
+    if (-not $GameName -and $apolloContext.IsApolloEnvironment -and $apolloContext.AppName) {
+        $GameName = $apolloContext.AppName
+        Write-ApolloLog -Message "Using Apollo app name: $GameName" -Level "INFO" -Category "Orchestrator"
+    }
+    elseif (-not $GameName) {
+        throw "No game name provided and no Apollo context available"
+    }
 
-# Use Apollo app name if GameName not provided or if Apollo context is available
-if (-not $GameName -and $apolloContext.AppName) {
-    $GameName = $apolloContext.AppName
-    Write-Log "Using Apollo app name: $GameName"
-} elseif (-not $GameName) {
-    Write-Log "No game name provided and no Apollo context available" "ERROR"
-    exit 1
-}
+    Write-ApolloLog -Message "Smart Game Cleanup - Action: $Action, Game: $GameName" -Level "INFO" -Category "Orchestrator"
 
-Write-Log "Smart Game Cleanup - Action: $Action, Game: $GameName"
-if ($apolloContext.AppName) {
-    Write-Log "Apollo Context - App: $($apolloContext.AppName), Status: $($apolloContext.AppStatus), Client: $($apolloContext.ClientName)"
-}
+    if ($apolloContext.IsApolloEnvironment) {
+        Write-ApolloLog -Message "Apollo Context - App: $($apolloContext.AppName), Status: $($apolloContext.AppStatus), Client: $($apolloContext.ClientName)" -Level "INFO" -Category "Orchestrator"
+    }
 
-switch ($Action) {
-    "track" {
-        Write-Log "Initiating process tracking phase"
-        $success = Start-GameTracking -GameName $GameName -Duration $TrackingDurationSeconds
-        if ($success) {
-            Write-Log "Process tracking phase completed successfully"
-            exit 0
-        } else {
-            Write-Log "Process tracking phase failed" "ERROR"
-            exit 1
+    # Execute the requested action
+    switch ($Action) {
+        "track" {
+            Write-ApolloLog -Message "Initiating process tracking phase" -Level "INFO" -Category "Orchestrator"
+
+            if ($PSCmdlet.ShouldProcess($GameName, "Start process tracking")) {
+                $params = @{
+                    GameName = $GameName
+                    PassThru = $PassThru
+                }
+
+                if ($TrackingDurationSeconds -gt 0) { $params.TrackingDurationSeconds = $TrackingDurationSeconds }
+                if ($Force) { $params.Force = $true }
+
+                $result = Start-ApolloGameTracking @params
+
+                if ($result -and -not $result.Success) {
+                    throw "Process tracking failed: $($result.Error)"
+                }
+
+                Write-ApolloLog -Message "Process tracking phase completed successfully" -Level "INFO" -Category "Orchestrator"
+
+                if ($PassThru) {
+                    return $result
+                }
+            }
+        }
+
+        "cleanup" {
+            Write-ApolloLog -Message "Initiating intelligent cleanup phase" -Level "INFO" -Category "Orchestrator"
+
+            if ($PSCmdlet.ShouldProcess($GameName, "Stop game processes")) {
+                $params = @{
+                    GameName = $GameName
+                    PassThru = $PassThru
+                }
+
+                if ($FallbackProcesses -and $FallbackProcesses.Count -gt 0) { $params.FallbackProcesses = $FallbackProcesses }
+                if ($GraceTimeoutSeconds -gt 0) { $params.GraceTimeoutSeconds = $GraceTimeoutSeconds }
+                if ($Force) { $params.Force = $true }
+
+                $result = Stop-ApolloGameProcesses @params
+
+                if ($result -and -not $result.Success) {
+                    throw "Process cleanup failed: $($result.Error)"
+                }
+
+                Write-ApolloLog -Message "Intelligent cleanup phase completed successfully" -Level "INFO" -Category "Orchestrator"
+
+                if ($PassThru) {
+                    return $result
+                }
+            }
+        }
+
+        default {
+            throw "Invalid action specified: $Action"
         }
     }
-    
-    "cleanup" {
-        Write-Log "Initiating intelligent cleanup phase"
-        $success = Stop-GameProcesses -GameName $GameName -Fallbacks $FallbackProcesses -GraceTimeout $GraceTimeoutSeconds
-        if ($success) {
-            Write-Log "Intelligent cleanup phase completed successfully"
-            exit 0
-        } else {
-            Write-Log "Intelligent cleanup phase failed" "ERROR"
-            exit 1
-        }
-    }
-    
-    default {
-        Write-Log "Invalid action specified: $Action" "ERROR"
-        exit 1
-    }
+
+    Write-ApolloLog -Message "Smart Game Cleanup completed successfully" -Level "INFO" -Category "Orchestrator"
+}
+catch {
+    $errorMessage = "Smart Game Cleanup failed: $($_.Exception.Message)"
+    Write-ApolloLog -Message $errorMessage -Level "ERROR" -Category "Orchestrator"
+    Write-Error $errorMessage -ErrorAction Stop
 }

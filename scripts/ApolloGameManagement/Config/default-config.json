@@ -1,0 +1,132 @@
+{
+  "tracking": {
+    "defaultDurationSeconds": 60,
+    "trackingFilePath": "%TEMP%\\apollo\\process-tracking.json",
+    "maxTrackingEntries": 50,
+    "processSnapshotInterval": 1,
+    "enableDetailedLogging": true
+  },
+  "cleanup": {
+    "graceTimeoutSeconds": 10,
+    "forceKillTimeoutSeconds": 5,
+    "maxRetryAttempts": 3,
+    "retryDelaySeconds": 2,
+    "excludedProcesses": [
+      "explorer",
+      "dwm",
+      "winlogon",
+      "csrss",
+      "services",
+      "lsass",
+      "svchost",
+      "system",
+      "idle"
+    ],
+    "protectedProcesses": [
+      "steam",
+      "epicgameslauncher",
+      "uplay",
+      "origin"
+    ]
+  },
+  "logging": {
+    "logLevel": "INFO",
+    "logDirectory": "%LOCALAPPDATA%\\Apollo\\Logs",
+    "maxLogSizeMB": 10,
+    "maxLogFiles": 5,
+    "enableConsoleOutput": false,
+    "enableFileOutput": true,
+    "logRotationEnabled": true,
+    "timestampFormat": "yyyy-MM-dd HH:mm:ss"
+  },
+  "gamePatterns": {
+    "commonLaunchers": [
+      "steam",
+      "epic",
+      "epicgameslauncher",
+      "uplay",
+      "ubisoft",
+      "origin",
+      "ea",
+      "gog",
+      "galaxy",
+      "battlenet",
+      "blizzard",
+      "launcher"
+    ],
+    "antiCheatProcesses": [
+      "easyanticheat",
+      "eac",
+      "battleye",
+      "be",
+      "vanguard",
+      "riot",
+      "faceit",
+      "esea",
+      "anticheat"
+    ],
+    "gameEngines": [
+      "unity",
+      "unreal",
+      "ue4",
+      "ue5",
+      "source",
+      "cryengine",
+      "frostbite",
+      "anvil",
+      "creation"
+    ],
+    "supportProcesses": [
+      "crashreporter",
+      "crash",
+      "reporter",
+      "updater",
+      "patcher",
+      "downloader",
+      "installer"
+    ]
+  },
+  "security": {
+    "requireElevatedPrivileges": true,
+    "validateProcessPaths": true,
+    "enableInputSanitization": true,
+    "maxProcessNameLength": 255,
+    "allowedFileExtensions": [
+      ".exe",
+      ".com",
+      ".bat",
+      ".cmd"
+    ]
+  },
+  "performance": {
+    "enableProcessCaching": true,
+    "processCacheTimeoutSeconds": 5,
+    "enableParallelProcessing": false,
+    "parallelProcessingThrottleLimit": 10,
+    "maxConcurrentOperations": 5
+  },
+  "apollo": {
+    "environmentVariables": {
+      "appName": "APOLLO_APP_NAME",
+      "appUUID": "APOLLO_APP_UUID",
+      "appStatus": "APOLLO_APP_STATUS",
+      "clientName": "APOLLO_CLIENT_NAME",
+      "clientUUID": "APOLLO_CLIENT_UUID",
+      "clientWidth": "APOLLO_CLIENT_WIDTH",
+      "clientHeight": "APOLLO_CLIENT_HEIGHT",
+      "clientFPS": "APOLLO_CLIENT_FPS"
+    },
+    "statusValues": {
+      "running": "RUNNING",
+      "stopped": "STOPPED",
+      "starting": "STARTING",
+      "stopping": "STOPPING"
+    }
+  },
+  "paths": {
+    "tempDirectory": "%TEMP%\\apollo",
+    "configDirectory": "%LOCALAPPDATA%\\Apollo\\Config",
+    "dataDirectory": "%LOCALAPPDATA%\\Apollo\\Data",
+    "backupDirectory": "%LOCALAPPDATA%\\Apollo\\Backup"
+  }
+}
