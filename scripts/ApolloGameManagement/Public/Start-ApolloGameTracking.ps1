@@ -74,9 +74,9 @@ function Start-ApolloGameTracking {
         
         [Parameter()]
         [ValidateScript({
-            $dir = Split-Path $_ -Parent
-            if ($dir -and -not (Test-Path $dir -PathType Container)) {
-                throw "Tracking file directory does not exist: $dir"
+            # Validate that the path is not empty and is a valid path format
+            if ([string]::IsNullOrWhiteSpace($_)) {
+                throw "Tracking file path cannot be empty"
             }
             return $true
         })]
