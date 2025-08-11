@@ -19,6 +19,7 @@ function Get-IntelligentProcessesInternal {
 
     [CmdletBinding()]
     [OutputType([string[]])]
+    [OutputType([string[]])]
     param(
         [Parameter(Mandatory)]
         [string]$GameName
@@ -34,7 +35,7 @@ function Get-IntelligentProcessesInternal {
         $gameNameClean = $GameName -replace '[^\w\s]', '' -replace '\s+', ' '
         $gameWords = $gameNameClean -split '\s+' | Where-Object { $_.Length -gt 2 }
 
-        $detectedProcesses = @()
+        [string[]]$detectedProcesses = @()
 
         foreach ($process in $allProcesses) {
             $processName = $process.ProcessName
@@ -147,6 +148,6 @@ function Get-IntelligentProcessesInternal {
     }
     catch {
         Write-ApolloLogInternal -Message "Error in intelligent process detection: $($_.Exception.Message)" -Level "ERROR" -Category "ProcessDetection"
-        return @()
+        return [string[]]@()
     }
 }

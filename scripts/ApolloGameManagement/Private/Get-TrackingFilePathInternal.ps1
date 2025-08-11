@@ -175,7 +175,7 @@ function Get-AllTrackingFilesInternal {
         # Check if directory exists
         if (-not (Test-Path $trackingDir)) {
             Write-Verbose "Tracking directory does not exist: $trackingDir"
-            return @()
+            return [System.IO.FileInfo[]]@()
         }
 
         # Get all tracking files
@@ -187,6 +187,6 @@ function Get-AllTrackingFilesInternal {
     }
     catch {
         Write-Error "Failed to get tracking files: $($_.Exception.Message)"
-        return @()
+        return [System.IO.FileInfo[]]@()
     }
 }

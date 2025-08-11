@@ -210,7 +210,6 @@ function Stop-ApolloGameProcesses {
                     }
                 }
             }
-            }
         }
         catch {
             $errorMessage = "Failed to stop Apollo game processes: $($_.Exception.Message)"

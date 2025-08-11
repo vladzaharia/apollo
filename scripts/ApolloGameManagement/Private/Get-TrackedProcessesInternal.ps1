@@ -73,7 +73,7 @@ function Get-TrackedProcessesInternal {
             }
             else {
                 Write-ApolloLogInternal -Message "No processes detected for on-the-fly tracking" -Level "DEBUG" -Category "ProcessCleanup"
-                return @()
+                return [string[]]@()
             }
         }
 
@@ -93,88 +93,16 @@ function Get-TrackedProcessesInternal {
         }
         else {
             Write-ApolloLogInternal -Message "No tracking data found for game: $GameName" -Level "DEBUG" -Category "ProcessCleanup"
-            return @()
+            return [string[]]@()
         }
     }
     catch {
         Write-ApolloLogInternal -Message "Error reading tracking data: $($_.Exception.Message)" -Level "ERROR" -Category "ProcessCleanup"
-        return @()
+        return [string[]]@()
     }
 }
 
-function Get-IntelligentProcessesInternal {
-    <#
-    .SYNOPSIS
-        Internal function to intelligently detect game-related processes.
 
-    .DESCRIPTION
-        Uses pattern matching and heuristics to identify running processes
-        that are likely related to the specified game.
-
-    .PARAMETER GameName
-        Name of the game to detect processes for.
-
-    .OUTPUTS
-        [string[]] Array of detected process names
-
-    .NOTES
-        This is an internal function and should not be called directly.
-    #>
-
-    [CmdletBinding()]
-    [OutputType([string[]])]
-    param(
-        [Parameter(Mandatory)]
-        [string]$GameName
-    )
-
-    try {
-        Write-ApolloLogInternal -Message "Using intelligent detection for: $GameName" -Level "INFO" -Category "ProcessCleanup"
-
-        # Get current running processes
-        $runningProcesses = Get-ProcessSnapshotInternal -UseCache:$true
-
-        # Filter to non-system processes only
-        $candidateProcesses = $runningProcesses | Where-Object { -not $_.IsSystemProcess }
-
-        $detectedProcesses = @()
-
-        # Test each candidate process
-        foreach ($process in $candidateProcesses) {
-            $isGameRelated = Test-GameRelatedProcessInternal -ProcessName $process.ProcessName -GameName $GameName -ProcessPath $process.ExecutablePath -WindowTitle $process.MainWindowTitle
-
-            if ($isGameRelated) {
-                $detectedProcesses += $process.ProcessName
-                Write-ApolloLogInternal -Message "Detected game process: $($process.ProcessName)" -Level "INFO" -Category "ProcessCleanup"
-            }
-        }
-
-        # Get configuration for additional patterns
-        $config = Get-ApolloConfigurationInternal
-        $gamePatterns = $config.gamePatterns
-
-        # Add common game-related processes if they're running
-        $commonGameProcesses = $gamePatterns.antiCheatProcesses + $gamePatterns.supportProcesses
-
-        foreach ($commonProcess in $commonGameProcesses) {
-            $matchingProcesses = $candidateProcesses | Where-Object { $_.ProcessName -like "*$commonProcess*" }
-            if ($matchingProcesses) {
-                foreach ($match in $matchingProcesses) {
-                    if ($match.ProcessName -notin $detectedProcesses) {
-                        $detectedProcesses += $match.ProcessName
-                        Write-ApolloLogInternal -Message "Detected common game process: $($match.ProcessName)" -Level "INFO" -Category "ProcessCleanup"
-                    }
-                }
-            }
-        }
-
-        return $detectedProcesses | Select-Object -Unique
-    }
-    catch {
-        Write-ApolloLogInternal -Message "Error during intelligent process detection: $($_.Exception.Message)" -Level "ERROR" -Category "ProcessCleanup"
-        return @()
-    }
-}
 
 function Invoke-ProcessCleanup {
     <#
