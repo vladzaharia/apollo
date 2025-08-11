@@ -60,7 +60,7 @@ function Start-ApolloGameTracking {
         Write-ApolloLog
     #>
 
-    [CmdletBinding(SupportsShouldProcess)]
+    [CmdletBinding()]
     [OutputType([PSCustomObject])]
     param(
         [Parameter()]
@@ -114,65 +114,63 @@ function Start-ApolloGameTracking {
             Write-ApolloLog -Message "Starting process tracking for: $GameName" -Level "INFO" -Category "ProcessTracking"
             Write-ApolloLog -Message "Tracking duration: $TrackingDurationSeconds seconds" -Level "INFO" -Category "ProcessTracking"
 
-            if ($PSCmdlet.ShouldProcess($GameName, "Start process tracking")) {
-                # Take initial process snapshot
-                Write-ApolloLog -Message "Taking initial process snapshot..." -Level "INFO" -Category "ProcessTracking"
-                $initialProcesses = Get-ProcessSnapshotInternal -UseCache:$false
+            # Take initial process snapshot
+            Write-ApolloLog -Message "Taking initial process snapshot..." -Level "INFO" -Category "ProcessTracking"
+            $initialProcesses = Get-ProcessSnapshotInternal -UseCache:$false
 
-                Write-ApolloLog -Message "Initial process count: $($initialProcesses.Count)" -Level "INFO" -Category "ProcessTracking"
+            Write-ApolloLog -Message "Initial process count: $($initialProcesses.Count)" -Level "INFO" -Category "ProcessTracking"
 
-                # Wait for the specified tracking duration
-                Write-ApolloLog -Message "Monitoring new processes for $TrackingDurationSeconds seconds..." -Level "INFO" -Category "ProcessTracking"
-                Start-Sleep -Seconds $TrackingDurationSeconds
+            # Wait for the specified tracking duration
+            Write-ApolloLog -Message "Monitoring new processes for $TrackingDurationSeconds seconds..." -Level "INFO" -Category "ProcessTracking"
+            Start-Sleep -Seconds $TrackingDurationSeconds
 
-                # Take final process snapshot
-                Write-ApolloLog -Message "Taking final process snapshot..." -Level "INFO" -Category "ProcessTracking"
-                $finalProcesses = Get-ProcessSnapshotInternal -UseCache:$false
+            # Take final process snapshot
+            Write-ApolloLog -Message "Taking final process snapshot..." -Level "INFO" -Category "ProcessTracking"
+            $finalProcesses = Get-ProcessSnapshotInternal -UseCache:$false
 
-                # Identify new processes
-                $newProcesses = $finalProcesses | Where-Object {
-                    $finalProcess = $_
-                    -not ($initialProcesses | Where-Object { $_.ProcessId -eq $finalProcess.ProcessId })
+            # Identify new processes
+            $newProcesses = $finalProcesses | Where-Object {
+                $finalProcess = $_
+                -not ($initialProcesses | Where-Object { $_.ProcessId -eq $finalProcess.ProcessId })
+            }
+
+            Write-ApolloLog -Message "Found $($newProcesses.Count) new processes during tracking period" -Level "INFO" -Category "ProcessTracking"
+
+            # Analyze new processes for game relation
+            $gameRelatedProcesses = @()
+            foreach ($process in $newProcesses) {
+                $isGameRelated = Test-GameRelatedProcessInternal -ProcessName $process.ProcessName -GameName $GameName -ProcessPath $process.ExecutablePath -WindowTitle $process.MainWindowTitle
+                $process.IsGameRelated = $isGameRelated
+                $process.Priority = Get-ProcessPriorityInternal -ProcessName $process.ProcessName -GameName $GameName
+
+                if ($isGameRelated) {
+                    $gameRelatedProcesses += $process
+                    Write-ApolloLog -Message "Game-related process detected: $($process.ProcessName) (PID: $($process.ProcessId))" -Level "INFO" -Category "ProcessTracking"
                 }
-
-                Write-ApolloLog -Message "Found $($newProcesses.Count) new processes during tracking period" -Level "INFO" -Category "ProcessTracking"
-
-                # Analyze new processes for game relation
-                $gameRelatedProcesses = @()
-                foreach ($process in $newProcesses) {
-                    $isGameRelated = Test-GameRelatedProcessInternal -ProcessName $process.ProcessName -GameName $GameName -ProcessPath $process.ExecutablePath -WindowTitle $process.MainWindowTitle
-                    $process.IsGameRelated = $isGameRelated
-                    $process.Priority = Get-ProcessPriorityInternal -ProcessName $process.ProcessName -GameName $GameName
-
-                    if ($isGameRelated) {
-                        $gameRelatedProcesses += $process
-                        Write-ApolloLog -Message "Game-related process detected: $($process.ProcessName) (PID: $($process.ProcessId))" -Level "INFO" -Category "ProcessTracking"
-                    }
-                    else {
-                        Write-ApolloLog -Message "System process detected: $($process.ProcessName) (PID: $($process.ProcessId))" -Level "DEBUG" -Category "ProcessTracking"
-                    }
+                else {
+                    Write-ApolloLog -Message "System process detected: $($process.ProcessName) (PID: $($process.ProcessId))" -Level "DEBUG" -Category "ProcessTracking"
                 }
+            }
 
-                # Save tracking data
-                Save-TrackingDataInternal -GameName $GameName -InitialProcesses $initialProcesses -FinalProcesses $finalProcesses -NewProcesses $newProcesses -Config $config -Force:$Force | Out-Null
+            # Save tracking data
+            Save-TrackingDataInternal -GameName $GameName -InitialProcesses $initialProcesses -FinalProcesses $finalProcesses -NewProcesses $newProcesses -Config $config -Force:$Force | Out-Null
 
-                Write-ApolloLog -Message "Process tracking completed successfully for: $GameName" -Level "INFO" -Category "ProcessTracking"
-                Write-ApolloLog -Message "Game-related processes identified: $($gameRelatedProcesses.Count)" -Level "INFO" -Category "ProcessTracking"
+            Write-ApolloLog -Message "Process tracking completed successfully for: $GameName" -Level "INFO" -Category "ProcessTracking"
+            Write-ApolloLog -Message "Game-related processes identified: $($gameRelatedProcesses.Count)" -Level "INFO" -Category "ProcessTracking"
 
-                # Return results if requested
-                if ($PassThru) {
-                    $trackingFile = Get-TrackingFilePathInternal -GameName $GameName -Config $config
-                    return [PSCustomObject]@{
-                        GameName = $GameName
-                        TrackingDuration = $TrackingDurationSeconds
-                        NewProcessCount = $newProcesses.Count
-                        GameRelatedProcessCount = $gameRelatedProcesses.Count
-                        NewProcesses = $newProcesses
-                        GameRelatedProcesses = $gameRelatedProcesses
-                        TrackingFile = $trackingFile
-                        Success = $true
-                        Timestamp = Get-Date
-                    }
+            # Return results if requested
+            if ($PassThru) {
+                $trackingFile = Get-TrackingFilePathInternal -GameName $GameName -Config $config
+                return [PSCustomObject]@{
+                    GameName = $GameName
+                    TrackingDuration = $TrackingDurationSeconds
+                    NewProcessCount = $newProcesses.Count
+                    GameRelatedProcessCount = $gameRelatedProcesses.Count
+                    NewProcesses = $newProcesses
+                    GameRelatedProcesses = $gameRelatedProcesses
+                    TrackingFile = $trackingFile
+                    Success = $true
+                    Timestamp = Get-Date
                 }
             }
         }

@@ -72,7 +72,7 @@ function Stop-ApolloGameProcesses {
         Write-ApolloLog
     #>
 
-    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
+    [CmdletBinding()]
     [OutputType([PSCustomObject])]
     param(
         [Parameter()]
@@ -180,34 +180,32 @@ function Stop-ApolloGameProcesses {
 
             Write-ApolloLog -Message "Final process list for cleanup ($detectionMethod): $($processesToClose -join ', ')" -Level "INFO" -Category "ProcessCleanup"
 
-            if ($PSCmdlet.ShouldProcess("$($processesToClose.Count) processes for game '$GameName'", "Stop processes")) {
-                # Perform cleanup
-                $cleanupResult = Invoke-ProcessCleanup -ProcessNames $processesToClose -GraceTimeoutSeconds $GraceTimeoutSeconds -Force:$Force
+            # Perform cleanup
+            $cleanupResult = Invoke-ProcessCleanup -ProcessNames $processesToClose -GraceTimeoutSeconds $GraceTimeoutSeconds -Force:$Force
 
-                Write-ApolloLog -Message "Process cleanup completed for: $GameName" -Level "INFO" -Category "ProcessCleanup"
-                Write-ApolloLog -Message "Processes closed gracefully: $($cleanupResult.ProcessesClosed)" -Level "INFO" -Category "ProcessCleanup"
-                Write-ApolloLog -Message "Processes force killed: $($cleanupResult.ProcessesKilled)" -Level "INFO" -Category "ProcessCleanup"
+            Write-ApolloLog -Message "Process cleanup completed for: $GameName" -Level "INFO" -Category "ProcessCleanup"
+            Write-ApolloLog -Message "Processes closed gracefully: $($cleanupResult.ProcessesClosed)" -Level "INFO" -Category "ProcessCleanup"
+            Write-ApolloLog -Message "Processes force killed: $($cleanupResult.ProcessesKilled)" -Level "INFO" -Category "ProcessCleanup"
 
-                # Clean up tracking file if cleanup was successful and cleanup on exit is enabled
-                if ($cleanupResult.Success -and $config.tracking.enableCleanupOnExit) {
-                    $removed = Remove-GameTrackingFileInternal -GameName $GameName -Config $config
-                    if ($removed) {
-                        Write-ApolloLog -Message "Cleaned up tracking file for: $GameName" -Level "INFO" -Category "ProcessCleanup"
-                    }
+            # Clean up tracking file if cleanup was successful and cleanup on exit is enabled
+            if ($cleanupResult.Success -and $config.tracking.enableCleanupOnExit) {
+                $removed = Remove-GameTrackingFileInternal -GameName $GameName -Config $config
+                if ($removed) {
+                    Write-ApolloLog -Message "Cleaned up tracking file for: $GameName" -Level "INFO" -Category "ProcessCleanup"
                 }
+            }
 
-                # Return results if requested
-                if ($PassThru) {
-                    return [PSCustomObject]@{
-                        GameName = $GameName
-                        ProcessesFound = $processesToClose.Count
-                        ProcessesClosed = $cleanupResult.ProcessesClosed
-                        ProcessesKilled = $cleanupResult.ProcessesKilled
-                        Success = $cleanupResult.Success
-                        Method = $detectionMethod
-                        RemainingProcesses = $cleanupResult.RemainingProcesses
-                        Timestamp = Get-Date
-                    }
+            # Return results if requested
+            if ($PassThru) {
+                return [PSCustomObject]@{
+                    GameName = $GameName
+                    ProcessesFound = $processesToClose.Count
+                    ProcessesClosed = $cleanupResult.ProcessesClosed
+                    ProcessesKilled = $cleanupResult.ProcessesKilled
+                    Success = $cleanupResult.Success
+                    Method = $detectionMethod
+                    RemainingProcesses = $cleanupResult.RemainingProcesses
+                    Timestamp = Get-Date
                 }
             }
         }

@@ -139,7 +139,7 @@ function Set-EnvironmentOverrides {
         Applies environment variable overrides to configuration.
     #>
 
-    [CmdletBinding(SupportsShouldProcess)]
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [PSCustomObject]$Config
@@ -172,7 +172,7 @@ function Set-ConfigurationValue {
         Sets a nested configuration value using a path array.
     #>
 
-    [CmdletBinding(SupportsShouldProcess)]
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [PSCustomObject]$Config,
@@ -184,8 +184,7 @@ function Set-ConfigurationValue {
         $Value
     )
 
-    if ($PSCmdlet.ShouldProcess("Configuration path: $($Path -join '.')", "Set configuration value to: $Value")) {
-        $current = $Config
+    $current = $Config
     for ($i = 0; $i -lt $Path.Length - 1; $i++) {
         if (-not $current.PSObject.Properties.Name -contains $Path[$i]) {
             $current | Add-Member -MemberType NoteProperty -Name $Path[$i] -Value ([PSCustomObject]@{})
@@ -199,7 +198,6 @@ function Set-ConfigurationValue {
     }
     else {
         $current | Add-Member -MemberType NoteProperty -Name $finalProperty -Value $Value
-    }
     }
 }
 

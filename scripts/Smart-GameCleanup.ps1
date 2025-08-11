@@ -58,7 +58,7 @@
     Get-ApolloContext
 #>
 
-[CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
+[CmdletBinding()]
 [OutputType([PSCustomObject])]
 param(
     [Parameter(Mandatory)]
@@ -153,7 +153,7 @@ try {
         "track" {
             Write-ApolloLog -Message "Initiating background process tracking phase" -Level "INFO" -Category "Orchestrator"
 
-            if ($PSCmdlet.ShouldProcess($GameName, "Start background process tracking")) {
+            # Start background process tracking
                 # Start tracking in background job to avoid blocking game launch
                 $scriptBlock = {
                     param($GameName, $TrackingDurationSeconds, $Force, $ModulePath)
@@ -192,12 +192,11 @@ try {
                     }
                 }
             }
-        }
 
         "cleanup" {
             Write-ApolloLog -Message "Initiating intelligent cleanup phase" -Level "INFO" -Category "Orchestrator"
 
-            if ($PSCmdlet.ShouldProcess($GameName, "Stop game processes")) {
+            # Stop game processes
                 $params = @{
                     GameName = $GameName
                     PassThru = $PassThru
@@ -218,7 +217,6 @@ try {
                 if ($PassThru) {
                     return $result
                 }
-            }
         }
 
         default {

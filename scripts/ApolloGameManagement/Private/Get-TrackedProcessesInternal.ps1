@@ -298,7 +298,7 @@ function Stop-ProcessesForce {
         Force kills processes and their child processes.
     #>
 
-    [CmdletBinding(SupportsShouldProcess)]
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [string[]]$ProcessNames

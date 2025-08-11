@@ -223,14 +223,12 @@ function Set-CachedProcessSnapshot {
         Caches a process snapshot.
     #>
 
-    [CmdletBinding(SupportsShouldProcess)]
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [Array]$Snapshot
     )
 
-    if ($PSCmdlet.ShouldProcess("Process cache", "Update cached process snapshot")) {
-        $script:ProcessCache.Snapshot = $Snapshot
-        $script:ProcessCache.Timestamp = Get-Date
-    }
+    $script:ProcessCache.Snapshot = $Snapshot
+    $script:ProcessCache.Timestamp = Get-Date
 }

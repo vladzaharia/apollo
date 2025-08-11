@@ -99,7 +99,7 @@ function Remove-GameTrackingFileInternal {
         It's safe to call even if the tracking file doesn't exist.
     #>
 
-    [CmdletBinding(SupportsShouldProcess)]
+    [CmdletBinding()]
     [OutputType([bool])]
     param(
         [Parameter(Mandatory)]
@@ -123,14 +123,10 @@ function Remove-GameTrackingFileInternal {
             return $true
         }
 
-        if ($PSCmdlet.ShouldProcess($trackingFile, "Remove tracking file")) {
-            # Remove the tracking file
-            Remove-Item -Path $trackingFile -Force:$Force -ErrorAction Stop
-            Write-ApolloLogInternal -Message "Removed tracking file for game: $GameName" -Level "INFO" -Category "ProcessTracking"
-            return $true
-        }
-
-        return $false
+        # Remove the tracking file
+        Remove-Item -Path $trackingFile -Force:$Force -ErrorAction Stop
+        Write-ApolloLogInternal -Message "Removed tracking file for game: $GameName" -Level "INFO" -Category "ProcessTracking"
+        return $true
     }
     catch {
         Write-ApolloLogInternal -Message "Failed to remove tracking file for game '$GameName': $($_.Exception.Message)" -Level "WARN" -Category "ProcessTracking"
