@@ -1,0 +1,26 @@
+{
+  "name": "apollo-sync",
+  "version": "1.0.0",
+  "description": "Apollo/Sunshine app configuration sync tool",
+  "main": "sync-apollo-apps.js",
+  "scripts": {
+    "build": "tsc",
+    "sync": "npm run build && node dist/sync-apollo-apps.js",
+    "sync:dry": "npm run build && node dist/sync-apollo-apps.js --dry-run",
+    "sync:verbose": "npm run build && node dist/sync-apollo-apps.js --dry-run --verbose",
+    "test-connection": "npm run build && node -e \"const tool = require('./dist/sync-apollo-apps.js'); console.log('Connection test completed.')\""
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.0",
+    "commander": "^11.1.0",
+    "chalk": "^4.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

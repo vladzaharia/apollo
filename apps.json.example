@@ -1,0 +1,78 @@
+{
+  "apps": [
+    {
+      "name": "Steam Game Example",
+      "output": "",
+      "detached": [
+        "steam://rungameid/12345"
+      ],
+      "exclude-global-prep-cmd": false,
+      "elevated": false,
+      "auto-detach": true,
+      "wait-all": false,
+      "exit-timeout": 5,
+      "prep-cmd": [
+        {
+          "do": "powershell.exe -ExecutionPolicy Bypass -File \"C:\\Tools\\apollo\\scripts\\Smart-GameCleanup.ps1\" -Action track",
+          "undo": "powershell.exe -ExecutionPolicy Bypass -File \"C:\\Tools\\apollo\\scripts\\Smart-GameCleanup.ps1\" -Action cleanup -FallbackProcesses \"game.exe\"",
+          "elevated": true
+        }
+      ]
+    },
+    {
+      "name": "Epic Games Store Example",
+      "output": "",
+      "detached": [
+        "com.epicgames.launcher://apps/GameID?action=launch&silent=true"
+      ],
+      "exclude-global-prep-cmd": false,
+      "elevated": false,
+      "auto-detach": true,
+      "wait-all": false,
+      "exit-timeout": 5,
+      "prep-cmd": [
+        {
+          "do": "powershell.exe -ExecutionPolicy Bypass -File \"C:\\Tools\\apollo\\scripts\\Smart-GameCleanup.ps1\" -Action track",
+          "undo": "powershell.exe -ExecutionPolicy Bypass -File \"C:\\Tools\\apollo\\scripts\\Smart-GameCleanup.ps1\" -Action cleanup -FallbackProcesses \"GameName.exe\"",
+          "elevated": true
+        }
+      ]
+    },
+    {
+      "name": "Ubisoft Connect Example",
+      "output": "",
+      "detached": [
+        "uplay://launch/1234/0"
+      ],
+      "exclude-global-prep-cmd": false,
+      "elevated": false,
+      "auto-detach": true,
+      "wait-all": false,
+      "exit-timeout": 5,
+      "prep-cmd": [
+        {
+          "do": "powershell.exe -ExecutionPolicy Bypass -File \"C:\\Tools\\apollo\\scripts\\Smart-GameCleanup.ps1\" -Action track",
+          "undo": "powershell.exe -ExecutionPolicy Bypass -File \"C:\\Tools\\apollo\\scripts\\Smart-GameCleanup.ps1\" -Action cleanup -FallbackProcesses \"UbisoftGame.exe\"",
+          "elevated": true
+        }
+      ]
+    },
+    {
+      "name": "Direct Executable Example",
+      "output": "",
+      "cmd": "\"C:\\Games\\MyGame\\game.exe\" --fullscreen",
+      "exclude-global-prep-cmd": false,
+      "elevated": false,
+      "auto-detach": false,
+      "wait-all": false,
+      "exit-timeout": 5,
+      "prep-cmd": [
+        {
+          "do": "powershell.exe -ExecutionPolicy Bypass -File \"C:\\Tools\\apollo\\scripts\\Smart-GameCleanup.ps1\" -Action track",
+          "undo": "powershell.exe -ExecutionPolicy Bypass -File \"C:\\Tools\\apollo\\scripts\\Smart-GameCleanup.ps1\" -Action cleanup -FallbackProcesses \"game.exe\"",
+          "elevated": true
+        }
+      ]
+    }
+  ]
+}
