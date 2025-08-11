@@ -12,10 +12,10 @@
 RootModule = 'ApolloGameManagement.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.0.0'
+ModuleVersion = '1.0.0'
 
 # Supported PSEditions
-CompatiblePSEditions = @('Core')
+CompatiblePSEditions = @('Desktop', 'Core')
 
 # ID used to uniquely identify this module
 GUID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
@@ -33,7 +33,7 @@ Copyright = '(c) 2025 Apollo. All rights reserved.'
 Description = 'PowerShell module for intelligent game process management in Apollo streaming environment. Provides process tracking, cleanup, and Apollo context integration.'
 
 # Minimum version of the PowerShell engine required by this module
-PowerShellVersion = '7.2'
+PowerShellVersion = '5.1'
 
 # Name of the PowerShell host required by this module
 # PowerShellHostName = ''
@@ -114,17 +114,13 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         ReleaseNotes = @'
-Version 2.0.0 - PowerShell 7+ Modernization Release
-- Upgraded to require PowerShell 7.2+ for modern features
-- Enhanced security with comprehensive input validation
-- Modernized error handling with structured error responses
-- Added Pester v5 testing framework
-- Implemented PSScriptAnalyzer compliance
-- Added parallel processing and async patterns
-- Modernized logging with structured logging
-- Improved configuration management
-- Enhanced documentation and examples
-- Optimized module structure and dependencies
+Version 1.0.0 - Production Release
+- Core game process tracking and cleanup functionality
+- Apollo global prep commands integration
+- Streamlined configuration management
+- Production-ready logging system
+- Optimized for performance and security
+- All setup and migration components removed
 '@
 
         # Prerelease string of this module

@@ -78,26 +78,9 @@ function Stop-ApolloGameProcesses {
     param(
         [Parameter()]
         [ValidateNotNullOrEmpty()]
-        [ValidateLength(1, 255)]
-        [ValidateScript({
-            $validation = Test-SecurityValidation -InputString $_ -ValidationLevel 'Standard'
-            if (-not $validation.IsValid) {
-                throw "Game name validation failed: $($validation.SecurityWarnings -join '; ')"
-            }
-            return $true
-        })]
         [string]$GameName = '',
         
         [Parameter()]
-        [ValidateScript({
-            foreach ($process in $_) {
-                $validation = Test-SecurityValidation -ProcessName $process -ValidationLevel 'Standard'
-                if (-not $validation.IsValid) {
-                    throw "Fallback process '$process' validation failed: $($validation.SecurityWarnings -join '; ')"
-                }
-            }
-            return $true
-        })]
         [string[]]$FallbackProcesses = @(),
         
         [Parameter()]

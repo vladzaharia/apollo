@@ -76,16 +76,6 @@ function Write-ApolloLog {
         [string]$Level = 'INFO',
         
         [Parameter()]
-        [ValidateLength(0, 50)]
-        [ValidateScript({
-            if ($_ -and $_.Length -gt 0) {
-                $validation = Test-SecurityValidation -InputString $_ -ValidationLevel 'Basic'
-                if (-not $validation.IsValid) {
-                    throw "Category validation failed: $($validation.SecurityWarnings -join '; ')"
-                }
-            }
-            return $true
-        })]
         [string]$Category = '',
         
         [Parameter()]
