@@ -29,19 +29,19 @@ function Test-GameRelatedProcessInternal {
         This is an internal function and should not be called directly.
         Uses configurable patterns for better accuracy and maintainability.
     #>
-    
+
     [CmdletBinding()]
     [OutputType([bool])]
     param(
         [Parameter(Mandatory)]
         [string]$ProcessName,
-        
+
         [Parameter(Mandatory)]
         [string]$GameName,
-        
+
         [Parameter()]
         [string]$ProcessPath = '',
-        
+
         [Parameter()]
         [string]$WindowTitle = ''
     )
@@ -50,17 +50,17 @@ function Test-GameRelatedProcessInternal {
         # Get configuration
         $config = Get-ApolloConfigurationInternal
         $gamePatterns = $config.gamePatterns
-        
+
         # Clean inputs
         $cleanProcessName = ($ProcessName -replace '\.exe$', '').ToLower()
         $cleanGameName = $GameName.ToLower()
-        
+
         # Generate game name variations
         $gameKeywords = Get-GameNameVariations -GameName $cleanGameName
-        
+
         Write-Verbose "Testing process '$ProcessName' against game '$GameName'"
         Write-Verbose "Game keywords: $($gameKeywords -join ', ')"
-        
+
         # Test 1: Direct game name matching
         foreach ($keyword in $gameKeywords) {
             if ($cleanProcessName -like "*$keyword*") {
@@ -68,7 +68,7 @@ function Test-GameRelatedProcessInternal {
                 return $true
             }
         }
-        
+
         # Test 2: Window title matching (if available)
         if ($WindowTitle) {
             $cleanWindowTitle = $WindowTitle.ToLower()
@@ -79,7 +79,7 @@ function Test-GameRelatedProcessInternal {
                 }
             }
         }
-        
+
         # Test 3: Process path matching (if available)
         if ($ProcessPath) {
             $cleanProcessPath = $ProcessPath.ToLower()
@@ -90,21 +90,21 @@ function Test-GameRelatedProcessInternal {
                 }
             }
         }
-        
+
         # Test 4: Common game-related process patterns
         $isGameRelated = Test-CommonGamePatterns -ProcessName $cleanProcessName -GamePatterns $gamePatterns
         if ($isGameRelated) {
             Write-Verbose "Match found: Process matches common game patterns"
             return $true
         }
-        
+
         # Test 5: Launcher-specific patterns
         $isLauncherRelated = Test-LauncherPatterns -ProcessName $cleanProcessName -GamePatterns $gamePatterns
         if ($isLauncherRelated) {
             Write-Verbose "Match found: Process matches launcher patterns"
             return $true
         }
-        
+
         Write-Verbose "No match found for process '$ProcessName'"
         return $false
     }
@@ -119,7 +119,7 @@ function Get-GameNameVariations {
     .SYNOPSIS
         Generates variations of a game name for pattern matching.
     #>
-    
+
     [CmdletBinding()]
     [OutputType([string[]])]
     param(
@@ -128,36 +128,36 @@ function Get-GameNameVariations {
     )
 
     $variations = @()
-    
+
     # Original name
     $variations += $GameName
-    
+
     # Remove spaces
     $variations += $GameName -replace '\s+', ''
-    
+
     # Replace spaces with common separators
     $variations += $GameName -replace '\s+', '-'
     $variations += $GameName -replace '\s+', '_'
     $variations += $GameName -replace '\s+', '.'
-    
+
     # Individual words (if longer than 2 characters)
     $words = $GameName -split '\s+' | Where-Object { $_.Length -gt 2 }
     $variations += $words
-    
+
     # First and last words
     if ($words.Count -gt 1) {
         $variations += $words[0]
         $variations += $words[-1]
     }
-    
+
     # Remove common words and articles
     $commonWords = @('the', 'a', 'an', 'of', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'by')
     $filteredWords = $words | Where-Object { $_ -notin $commonWords }
     $variations += $filteredWords
-    
+
     # Remove duplicates and filter by length
     $variations = $variations | Where-Object { $_.Length -gt 2 } | Sort-Object -Unique
-    
+
     return $variations
 }
 
@@ -166,13 +166,13 @@ function Test-CommonGamePatterns {
     .SYNOPSIS
         Tests process name against common game-related patterns.
     #>
-    
+
     [CmdletBinding()]
     [OutputType([bool])]
     param(
         [Parameter(Mandatory)]
         [string]$ProcessName,
-        
+
         [Parameter(Mandatory)]
         [PSCustomObject]$GamePatterns
     )
@@ -183,21 +183,21 @@ function Test-CommonGamePatterns {
             return $true
         }
     }
-    
+
     # Test against game engines
     foreach ($pattern in $GamePatterns.gameEngines) {
         if ($ProcessName -like "*$pattern*") {
             return $true
         }
     }
-    
+
     # Test against support processes
     foreach ($pattern in $GamePatterns.supportProcesses) {
         if ($ProcessName -like "*$pattern*") {
             return $true
         }
     }
-    
+
     return $false
 }
 
@@ -206,13 +206,13 @@ function Test-LauncherPatterns {
     .SYNOPSIS
         Tests process name against game launcher patterns.
     #>
-    
+
     [CmdletBinding()]
     [OutputType([bool])]
     param(
         [Parameter(Mandatory)]
         [string]$ProcessName,
-        
+
         [Parameter(Mandatory)]
         [PSCustomObject]$GamePatterns
     )
@@ -222,7 +222,7 @@ function Test-LauncherPatterns {
             return $true
         }
     }
-    
+
     return $false
 }
 
@@ -247,37 +247,37 @@ function Get-ProcessPriorityInternal {
     .EXAMPLE
         $priority = Get-ProcessPriorityInternal -ProcessName "Cyberpunk2077" -GameName "Cyberpunk 2077"
     #>
-    
+
     [CmdletBinding()]
     [OutputType([int])]
     param(
         [Parameter(Mandatory)]
         [string]$ProcessName,
-        
+
         [Parameter(Mandatory)]
         [string]$GameName
     )
 
     $cleanProcessName = ($ProcessName -replace '\.exe$', '').ToLower()
     $gameKeywords = Get-GameNameVariations -GameName $GameName.ToLower()
-    
+
     # Priority 1: Main game executable (highest priority)
     foreach ($keyword in $gameKeywords) {
         if ($cleanProcessName -like "*$keyword*") {
             return 1
         }
     }
-    
+
     # Priority 2: Launchers and clients
     if ($cleanProcessName -match '(launcher|client)') {
         return 2
     }
-    
+
     # Priority 3: Anti-cheat and support processes
     if ($cleanProcessName -match '(anticheat|eac|battleye|crash|reporter|updater)') {
         return 3
     }
-    
+
     # Priority 4: Everything else (lowest priority)
     return 4
 }

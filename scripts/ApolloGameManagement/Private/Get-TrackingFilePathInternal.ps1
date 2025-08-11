@@ -26,17 +26,17 @@ function Get-TrackingFilePathInternal {
         - Removing invalid filesystem characters
         - Replacing spaces with underscores
         - Limiting length to prevent path issues
-        
+
         The resulting filename format is: {sanitized-game-name}.json
     #>
-    
+
     [CmdletBinding()]
     [OutputType([string])]
     param(
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [string]$GameName,
-        
+
         [Parameter(Mandatory)]
         [PSCustomObject]$Config
     )
@@ -44,21 +44,21 @@ function Get-TrackingFilePathInternal {
     try {
         # Get tracking directory from config
         $trackingDir = [Environment]::ExpandEnvironmentVariables($Config.tracking.trackingDirectory)
-        
+
         # Sanitize game name for filesystem
         $sanitizedGameName = $GameName -replace '[<>:"/\\|?*]', '' -replace '\s+', '_'
-        
+
         # Limit filename length to prevent path issues
         if ($sanitizedGameName.Length -gt 100) {
             $sanitizedGameName = $sanitizedGameName.Substring(0, 100)
         }
-        
+
         # Build filename with extension
         $fileName = "$sanitizedGameName$($Config.tracking.fileExtension)"
-        
+
         # Return full path
         $fullPath = Join-Path $trackingDir $fileName
-        
+
         Write-Verbose "Generated tracking file path: $fullPath"
         return $fullPath
     }
@@ -98,17 +98,17 @@ function Remove-GameTrackingFileInternal {
         This function is called during cleanup to ensure tracking files don't accumulate.
         It's safe to call even if the tracking file doesn't exist.
     #>
-    
+
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([bool])]
     param(
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [string]$GameName,
-        
+
         [Parameter(Mandatory)]
         [PSCustomObject]$Config,
-        
+
         [Parameter()]
         [switch]$Force
     )
@@ -116,20 +116,20 @@ function Remove-GameTrackingFileInternal {
     try {
         # Get the tracking file path
         $trackingFile = Get-TrackingFilePathInternal -GameName $GameName -Config $Config
-        
+
         # Check if file exists
         if (-not (Test-Path $trackingFile)) {
             Write-Verbose "Tracking file does not exist: $trackingFile"
             return $true
         }
-        
+
         if ($PSCmdlet.ShouldProcess($trackingFile, "Remove tracking file")) {
             # Remove the tracking file
             Remove-Item -Path $trackingFile -Force:$Force -ErrorAction Stop
             Write-ApolloLogInternal -Message "Removed tracking file for game: $GameName" -Level "INFO" -Category "ProcessTracking"
             return $true
         }
-        
+
         return $false
     }
     catch {
@@ -160,7 +160,7 @@ function Get-AllTrackingFilesInternal {
     .NOTES
         This function only returns files with the configured tracking file extension.
     #>
-    
+
     [CmdletBinding()]
     [OutputType([System.IO.FileInfo[]])]
     param(
@@ -171,17 +171,17 @@ function Get-AllTrackingFilesInternal {
     try {
         # Get tracking directory from config
         $trackingDir = [Environment]::ExpandEnvironmentVariables($Config.tracking.trackingDirectory)
-        
+
         # Check if directory exists
         if (-not (Test-Path $trackingDir)) {
             Write-Verbose "Tracking directory does not exist: $trackingDir"
             return @()
         }
-        
+
         # Get all tracking files
         $pattern = "*$($Config.tracking.fileExtension)"
         $trackingFiles = Get-ChildItem -Path $trackingDir -Filter $pattern -File
-        
+
         Write-Verbose "Found $($trackingFiles.Count) tracking files in $trackingDir"
         return $trackingFiles
     }

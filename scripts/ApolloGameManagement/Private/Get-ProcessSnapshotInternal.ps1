@@ -26,13 +26,13 @@ function Get-ProcessSnapshotInternal {
         This is an internal function and should not be called directly.
         Uses Get-CimInstance instead of deprecated Get-WmiObject for better performance.
     #>
-    
+
     [CmdletBinding()]
     [OutputType([Array])]
     param(
         [Parameter()]
         [switch]$IncludeSystemProcesses,
-        
+
         [Parameter()]
         [switch]$UseCache
     )
@@ -41,7 +41,7 @@ function Get-ProcessSnapshotInternal {
         # Get configuration
         $config = Get-ApolloConfigurationInternal
         $perfConfig = $config.performance
-        
+
         # Check cache if enabled
         if ($UseCache -and $perfConfig.enableProcessCaching) {
             $cachedSnapshot = Get-CachedProcessSnapshot -Config $perfConfig
@@ -52,18 +52,18 @@ function Get-ProcessSnapshotInternal {
         }
 
         Write-Verbose "Capturing new process snapshot"
-        
+
         # Get processes using modern CIM cmdlets for better performance
         $processes = Get-CimInstance -ClassName Win32_Process -Property ProcessId, Name, ExecutablePath, CreationDate, ParentProcessId, CommandLine
-        
+
         # Convert to enhanced process objects
         $enhancedProcesses = @()
-        
+
         foreach ($process in $processes) {
             try {
                 # Get additional process information
                 $processInfo = Get-Process -Id $process.ProcessId -ErrorAction SilentlyContinue
-                
+
                 if ($processInfo) {
                     $enhancedProcess = [PSCustomObject]@{
                         ProcessName = $process.Name -replace '\.exe$', ''
@@ -83,7 +83,7 @@ function Get-ProcessSnapshotInternal {
                         Priority = 0  # Will be set by calling function
                         Timestamp = Get-Date
                     }
-                    
+
                     # Apply filtering
                     if ($IncludeSystemProcesses -or -not $enhancedProcess.IsSystemProcess) {
                         $enhancedProcesses += $enhancedProcess
@@ -111,18 +111,18 @@ function Get-ProcessSnapshotInternal {
                     Priority = 0
                     Timestamp = Get-Date
                 }
-                
+
                 if ($IncludeSystemProcesses -or -not $basicProcess.IsSystemProcess) {
                     $enhancedProcesses += $basicProcess
                 }
             }
         }
-        
+
         # Cache the snapshot if caching is enabled
         if ($perfConfig.enableProcessCaching) {
             Set-CachedProcessSnapshot -Snapshot $enhancedProcesses -Config $perfConfig
         }
-        
+
         Write-Verbose "Captured $($enhancedProcesses.Count) processes in snapshot"
         return $enhancedProcesses
     }
@@ -137,7 +137,7 @@ function Test-SystemProcess {
     .SYNOPSIS
         Tests if a process is a system process that should be excluded.
     #>
-    
+
     [CmdletBinding()]
     [OutputType([bool])]
     param(
@@ -148,17 +148,17 @@ function Test-SystemProcess {
     # Get excluded processes from configuration
     $config = Get-ApolloConfigurationInternal
     $excludedProcesses = $config.cleanup.excludedProcesses
-    
+
     # Clean process name
     $cleanName = $ProcessName -replace '\.exe$', ''
-    
+
     # Check against excluded list (case-insensitive)
     foreach ($excluded in $excludedProcesses) {
         if ($cleanName -like $excluded) {
             return $true
         }
     }
-    
+
     # Additional system process patterns
     $systemPatterns = @(
         'System*',
@@ -178,13 +178,13 @@ function Test-SystemProcess {
         'dwm*',
         'explorer*'
     )
-    
+
     foreach ($pattern in $systemPatterns) {
         if ($cleanName -like $pattern) {
             return $true
         }
     }
-    
+
     return $false
 }
 
@@ -199,7 +199,7 @@ function Get-CachedProcessSnapshot {
     .SYNOPSIS
         Retrieves cached process snapshot if available and recent.
     #>
-    
+
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
@@ -208,12 +208,12 @@ function Get-CachedProcessSnapshot {
 
     $cacheTimeout = [TimeSpan]::FromSeconds($Config.processCacheTimeoutSeconds)
     $now = Get-Date
-    
-    if ($script:ProcessCache.Snapshot -and 
+
+    if ($script:ProcessCache.Snapshot -and
         ($now - $script:ProcessCache.Timestamp) -lt $cacheTimeout) {
         return $script:ProcessCache.Snapshot
     }
-    
+
     return $null
 }
 
@@ -222,16 +222,15 @@ function Set-CachedProcessSnapshot {
     .SYNOPSIS
         Caches a process snapshot.
     #>
-    
-    [CmdletBinding()]
+
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory)]
-        [Array]$Snapshot,
-        
-        [Parameter(Mandatory)]
-        [PSCustomObject]$Config
+        [Array]$Snapshot
     )
 
-    $script:ProcessCache.Snapshot = $Snapshot
-    $script:ProcessCache.Timestamp = Get-Date
+    if ($PSCmdlet.ShouldProcess("Process cache", "Update cached process snapshot")) {
+        $script:ProcessCache.Snapshot = $Snapshot
+        $script:ProcessCache.Timestamp = Get-Date
+    }
 }

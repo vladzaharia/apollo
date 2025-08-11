@@ -8,11 +8,11 @@ function Stop-ApolloGameProcesses {
         1. Tracked processes from previous Start-ApolloGameTracking call
         2. Intelligent detection based on game name patterns
         3. Manual fallback process list
-        
+
         Uses graceful termination first, then force termination if necessary.
 
     .PARAMETER GameName
-        The name of the game whose processes should be stopped. If not specified, 
+        The name of the game whose processes should be stopped. If not specified,
         attempts to use Apollo environment context.
 
     .PARAMETER FallbackProcesses
@@ -63,7 +63,7 @@ function Stop-ApolloGameProcesses {
         This function should be called as an "undo" command in Apollo after a game exits.
         It attempts to clean up only game-related processes while preserving system processes
         and game launchers (Steam, Epic, etc.) unless they are specifically game-related.
-        
+
         Requires elevated privileges for comprehensive process termination.
 
     .LINK
@@ -71,33 +71,33 @@ function Stop-ApolloGameProcesses {
         Get-ApolloContext
         Write-ApolloLog
     #>
-    
+
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
     [OutputType([PSCustomObject])]
     param(
         [Parameter()]
         [ValidateNotNullOrEmpty()]
         [string]$GameName = '',
-        
+
         [Parameter()]
         [string[]]$FallbackProcesses = @(),
-        
 
-        
+
+
         [Parameter()]
         [ValidateRange(1, 60)]
         [int]$GraceTimeoutSeconds = 0,
-        
+
         [Parameter()]
         [switch]$Force,
-        
+
         [Parameter()]
         [switch]$PassThru
     )
 
     begin {
         Write-Verbose "Initializing Apollo game process cleanup"
-        
+
         # Check for elevated privileges
         if (-not (Test-IsElevated)) {
             Write-Warning "Running without elevated privileges. Process cleanup may be limited."
@@ -108,7 +108,7 @@ function Stop-ApolloGameProcesses {
         try {
             # Get configuration
             $config = Get-ApolloConfiguration
-            
+
             # Resolve game name
             if (-not $GameName) {
                 $apolloContext = Get-ApolloContext
@@ -120,23 +120,23 @@ function Stop-ApolloGameProcesses {
                     throw "No game name provided and no Apollo context available"
                 }
             }
-            
+
             # Resolve grace timeout
             if ($GraceTimeoutSeconds -eq 0) {
                 $GraceTimeoutSeconds = $config.cleanup.graceTimeoutSeconds
             }
-            
 
-            
+
+
             Write-ApolloLog -Message "Starting intelligent process cleanup for: $GameName" -Level "INFO" -Category "ProcessCleanup"
-            
+
             # Initialize results
             $processesToClose = @()
             $detectionMethod = ""
-            
+
             # Tier 1: Use tracked processes
             $trackedProcesses = Get-TrackedProcessesInternal -GameName $GameName -Config $config
-            
+
             if ($trackedProcesses -and $trackedProcesses.Count -gt 0) {
                 Write-ApolloLog -Message "Using tracked processes (Tier 1)" -Level "INFO" -Category "ProcessCleanup"
                 $processesToClose = $trackedProcesses
@@ -146,7 +146,7 @@ function Stop-ApolloGameProcesses {
                 # Tier 2: Intelligent detection
                 Write-ApolloLog -Message "No tracked processes found, using intelligent detection (Tier 2)" -Level "INFO" -Category "ProcessCleanup"
                 $detectedProcesses = Get-IntelligentProcessesInternal -GameName $GameName
-                
+
                 if ($detectedProcesses -and $detectedProcesses.Count -gt 0) {
                     $processesToClose = $detectedProcesses
                     $detectionMethod = "Intelligent"
@@ -160,7 +160,7 @@ function Stop-ApolloGameProcesses {
                     }
                     else {
                         Write-ApolloLog -Message "No fallback processes provided, cleanup complete" -Level "WARN" -Category "ProcessCleanup"
-                        
+
                         if ($PassThru) {
                             return [PSCustomObject]@{
                                 GameName = $GameName
@@ -177,13 +177,13 @@ function Stop-ApolloGameProcesses {
                     }
                 }
             }
-            
+
             Write-ApolloLog -Message "Final process list for cleanup ($detectionMethod): $($processesToClose -join ', ')" -Level "INFO" -Category "ProcessCleanup"
-            
+
             if ($PSCmdlet.ShouldProcess("$($processesToClose.Count) processes for game '$GameName'", "Stop processes")) {
                 # Perform cleanup
-                $cleanupResult = Invoke-ProcessCleanup -ProcessNames $processesToClose -GraceTimeoutSeconds $GraceTimeoutSeconds -Force:$Force -Config $config
-                
+                $cleanupResult = Invoke-ProcessCleanup -ProcessNames $processesToClose -GraceTimeoutSeconds $GraceTimeoutSeconds -Force:$Force
+
                 Write-ApolloLog -Message "Process cleanup completed for: $GameName" -Level "INFO" -Category "ProcessCleanup"
                 Write-ApolloLog -Message "Processes closed gracefully: $($cleanupResult.ProcessesClosed)" -Level "INFO" -Category "ProcessCleanup"
                 Write-ApolloLog -Message "Processes force killed: $($cleanupResult.ProcessesKilled)" -Level "INFO" -Category "ProcessCleanup"
@@ -195,7 +195,7 @@ function Stop-ApolloGameProcesses {
                         Write-ApolloLog -Message "Cleaned up tracking file for: $GameName" -Level "INFO" -Category "ProcessCleanup"
                     }
                 }
-                
+
                 # Return results if requested
                 if ($PassThru) {
                     return [PSCustomObject]@{
@@ -210,11 +210,12 @@ function Stop-ApolloGameProcesses {
                     }
                 }
             }
+            }
         }
         catch {
             $errorMessage = "Failed to stop Apollo game processes: $($_.Exception.Message)"
             Write-ApolloLog -Message $errorMessage -Level "ERROR" -Category "ProcessCleanup"
-            
+
             if ($PassThru) {
                 return [PSCustomObject]@{
                     GameName = $GameName
@@ -223,7 +224,7 @@ function Stop-ApolloGameProcesses {
                     Timestamp = Get-Date
                 }
             }
-            
+
             Write-Error $errorMessage -ErrorAction Stop
         }
     }

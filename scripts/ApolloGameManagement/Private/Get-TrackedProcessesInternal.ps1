@@ -19,7 +19,7 @@ function Get-TrackedProcessesInternal {
     .NOTES
         This is an internal function and should not be called directly.
     #>
-    
+
     [CmdletBinding()]
     [OutputType([string[]])]
     param(
@@ -79,15 +79,15 @@ function Get-TrackedProcessesInternal {
 
         # Load tracking data from the game-specific file
         $gameTrackingData = Get-Content $TrackingFile -Raw | ConvertFrom-Json
-        
+
         if ($gameTrackingData) {
             Write-ApolloLogInternal -Message "Found tracking data for $GameName from $($gameTrackingData.Timestamp)" -Level "INFO" -Category "ProcessCleanup"
-            
+
             # Return game-related processes sorted by priority
-            $processes = $gameTrackingData.GameRelatedProcesses | 
-                Sort-Object Priority | 
+            $processes = $gameTrackingData.GameRelatedProcesses |
+                Sort-Object Priority |
                 ForEach-Object { $_.ProcessName }
-            
+
             Write-ApolloLogInternal -Message "Tracked processes: $($processes -join ', ')" -Level "INFO" -Category "ProcessCleanup"
             return $processes
         }
@@ -120,7 +120,7 @@ function Get-IntelligentProcessesInternal {
     .NOTES
         This is an internal function and should not be called directly.
     #>
-    
+
     [CmdletBinding()]
     [OutputType([string[]])]
     param(
@@ -130,32 +130,32 @@ function Get-IntelligentProcessesInternal {
 
     try {
         Write-ApolloLogInternal -Message "Using intelligent detection for: $GameName" -Level "INFO" -Category "ProcessCleanup"
-        
+
         # Get current running processes
         $runningProcesses = Get-ProcessSnapshotInternal -UseCache:$true
-        
+
         # Filter to non-system processes only
         $candidateProcesses = $runningProcesses | Where-Object { -not $_.IsSystemProcess }
-        
+
         $detectedProcesses = @()
-        
+
         # Test each candidate process
         foreach ($process in $candidateProcesses) {
             $isGameRelated = Test-GameRelatedProcessInternal -ProcessName $process.ProcessName -GameName $GameName -ProcessPath $process.ExecutablePath -WindowTitle $process.MainWindowTitle
-            
+
             if ($isGameRelated) {
                 $detectedProcesses += $process.ProcessName
                 Write-ApolloLogInternal -Message "Detected game process: $($process.ProcessName)" -Level "INFO" -Category "ProcessCleanup"
             }
         }
-        
+
         # Get configuration for additional patterns
         $config = Get-ApolloConfigurationInternal
         $gamePatterns = $config.gamePatterns
-        
+
         # Add common game-related processes if they're running
         $commonGameProcesses = $gamePatterns.antiCheatProcesses + $gamePatterns.supportProcesses
-        
+
         foreach ($commonProcess in $commonGameProcesses) {
             $matchingProcesses = $candidateProcesses | Where-Object { $_.ProcessName -like "*$commonProcess*" }
             if ($matchingProcesses) {
@@ -167,7 +167,7 @@ function Get-IntelligentProcessesInternal {
                 }
             }
         }
-        
+
         return $detectedProcesses | Select-Object -Unique
     }
     catch {
@@ -203,21 +203,18 @@ function Invoke-ProcessCleanup {
     .NOTES
         This is an internal function and should not be called directly.
     #>
-    
+
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
     param(
         [Parameter(Mandatory)]
         [string[]]$ProcessNames,
-        
+
         [Parameter(Mandatory)]
         [int]$GraceTimeoutSeconds,
-        
+
         [Parameter()]
-        [switch]$Force,
-        
-        [Parameter(Mandatory)]
-        [PSCustomObject]$Config
+        [switch]$Force
     )
 
     try {
@@ -227,40 +224,40 @@ function Invoke-ProcessCleanup {
             Success = $false
             RemainingProcesses = @()
         }
-        
+
         if (-not $ProcessNames -or $ProcessNames.Count -eq 0) {
             Write-ApolloLogInternal -Message "No processes to clean up" -Level "INFO" -Category "ProcessCleanup"
             $result.Success = $true
             return $result
         }
-        
+
         # Skip graceful close if Force is specified
         if (-not $Force) {
             # Attempt graceful close first
-            $gracefulResult = Close-ProcessesGracefully -ProcessNames $ProcessNames -GraceTimeoutSeconds $GraceTimeoutSeconds -Config $Config
+            $gracefulResult = Close-ProcessesGracefully -ProcessNames $ProcessNames -GraceTimeoutSeconds $GraceTimeoutSeconds
             $result.ProcessesClosed = $gracefulResult.ProcessesClosed
-            
+
             if ($gracefulResult.AllClosed) {
                 Write-ApolloLogInternal -Message "Successfully closed all processes gracefully" -Level "INFO" -Category "ProcessCleanup"
                 $result.Success = $true
                 return $result
             }
-            
+
             # Get remaining processes for force kill
             $remainingProcesses = $gracefulResult.RemainingProcesses
         }
         else {
             $remainingProcesses = $ProcessNames
         }
-        
+
         # Force kill remaining processes
         if ($remainingProcesses -and $remainingProcesses.Count -gt 0) {
             Write-ApolloLogInternal -Message "Graceful close failed or skipped, force killing remaining processes" -Level "INFO" -Category "ProcessCleanup"
-            $forceResult = Kill-ProcessesForce -ProcessNames $remainingProcesses -Config $Config
+            $forceResult = Stop-ProcessesForce -ProcessNames $remainingProcesses
             $result.ProcessesKilled = $forceResult.ProcessesKilled
             $result.RemainingProcesses = $forceResult.RemainingProcesses
         }
-        
+
         # Final verification
         Start-Sleep -Seconds 2
         $finalRemaining = @()
@@ -271,17 +268,17 @@ function Invoke-ProcessCleanup {
                 $finalRemaining += $remaining.ProcessName
             }
         }
-        
+
         $result.RemainingProcesses = $finalRemaining
         $result.Success = ($finalRemaining.Count -eq 0)
-        
+
         if ($finalRemaining.Count -gt 0) {
             Write-ApolloLogInternal -Message "Warning: Some processes may still be running: $($finalRemaining -join ', ')" -Level "WARN" -Category "ProcessCleanup"
         }
         else {
             Write-ApolloLogInternal -Message "All processes successfully cleaned up" -Level "INFO" -Category "ProcessCleanup"
         }
-        
+
         return $result
     }
     catch {
@@ -295,17 +292,14 @@ function Close-ProcessesGracefully {
     .SYNOPSIS
         Attempts to close processes gracefully using CloseMainWindow.
     #>
-    
+
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [string[]]$ProcessNames,
-        
+
         [Parameter(Mandatory)]
-        [int]$GraceTimeoutSeconds,
-        
-        [Parameter(Mandatory)]
-        [PSCustomObject]$Config
+        [int]$GraceTimeoutSeconds
     )
 
     $result = [PSCustomObject]@{
@@ -313,16 +307,16 @@ function Close-ProcessesGracefully {
         AllClosed = $false
         RemainingProcesses = @()
     }
-    
+
     Write-ApolloLogInternal -Message "Attempting graceful close for: $($ProcessNames -join ', ')" -Level "INFO" -Category "ProcessCleanup"
-    
+
     $totalProcesses = 0
     $closedCount = 0
-    
+
     foreach ($processName in $ProcessNames) {
         $cleanName = $processName -replace '\.exe$', ''
         $processes = Get-Process -Name $cleanName -ErrorAction SilentlyContinue
-        
+
         if ($processes) {
             $totalProcesses += $processes.Count
             foreach ($process in $processes) {
@@ -342,13 +336,13 @@ function Close-ProcessesGracefully {
             }
         }
     }
-    
+
     $result.ProcessesClosed = $closedCount
-    
+
     if ($closedCount -gt 0) {
         Write-ApolloLogInternal -Message "Sent close signal to $closedCount window(s). Waiting $GraceTimeoutSeconds seconds..." -Level "INFO" -Category "ProcessCleanup"
         Start-Sleep -Seconds $GraceTimeoutSeconds
-        
+
         # Check which processes are still running
         $remainingProcesses = @()
         foreach ($processName in $ProcessNames) {
@@ -358,7 +352,7 @@ function Close-ProcessesGracefully {
                 $remainingProcesses += $processName
             }
         }
-        
+
         $result.RemainingProcesses = $remainingProcesses
         $result.AllClosed = ($remainingProcesses.Count -eq 0)
     }
@@ -366,44 +360,41 @@ function Close-ProcessesGracefully {
         $result.AllClosed = ($totalProcesses -eq 0)
         $result.RemainingProcesses = if ($totalProcesses -gt 0) { $ProcessNames } else { @() }
     }
-    
+
     return $result
 }
 
-function Kill-ProcessesForce {
+function Stop-ProcessesForce {
     <#
     .SYNOPSIS
         Force kills processes and their child processes.
     #>
-    
-    [CmdletBinding()]
+
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory)]
-        [string[]]$ProcessNames,
-        
-        [Parameter(Mandatory)]
-        [PSCustomObject]$Config
+        [string[]]$ProcessNames
     )
 
     $result = [PSCustomObject]@{
         ProcessesKilled = 0
         RemainingProcesses = @()
     }
-    
+
     Write-ApolloLogInternal -Message "Force killing processes: $($ProcessNames -join ', ')" -Level "INFO" -Category "ProcessCleanup"
-    
+
     foreach ($processName in $ProcessNames) {
         $cleanName = $processName -replace '\.exe$', ''
         $processes = Get-Process -Name $cleanName -ErrorAction SilentlyContinue
-        
+
         foreach ($process in $processes) {
             try {
                 Write-ApolloLogInternal -Message "Killing process PID $($process.Id): $($process.ProcessName)" -Level "DEBUG" -Category "ProcessCleanup"
-                
+
                 # Kill child processes first using CIM instead of WMI
-                $childProcesses = Get-CimInstance -ClassName Win32_Process | 
+                $childProcesses = Get-CimInstance -ClassName Win32_Process |
                     Where-Object { $_.ParentProcessId -eq $process.Id }
-                
+
                 foreach ($child in $childProcesses) {
                     try {
                         Write-ApolloLogInternal -Message "Killing child process PID $($child.ProcessId): $($child.Name)" -Level "DEBUG" -Category "ProcessCleanup"
@@ -413,12 +404,12 @@ function Kill-ProcessesForce {
                         Write-ApolloLogInternal -Message "Failed to kill child process $($child.ProcessId): $($_.Exception.Message)" -Level "WARN" -Category "ProcessCleanup"
                     }
                 }
-                
+
                 # Kill the main process
                 Stop-Process -Id $process.Id -Force
                 $result.ProcessesKilled++
                 Write-ApolloLogInternal -Message "Successfully killed PID $($process.Id)" -Level "DEBUG" -Category "ProcessCleanup"
-                
+
             }
             catch {
                 Write-ApolloLogInternal -Message "Failed to kill process PID $($process.Id): $($_.Exception.Message)" -Level "ERROR" -Category "ProcessCleanup"
@@ -426,6 +417,6 @@ function Kill-ProcessesForce {
             }
         }
     }
-    
+
     return $result
 }

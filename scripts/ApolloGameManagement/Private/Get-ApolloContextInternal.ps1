@@ -17,7 +17,7 @@ function Get-ApolloContextInternal {
     .NOTES
         This is an internal function and should not be called directly.
     #>
-    
+
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
     param()
@@ -59,7 +59,7 @@ function Get-ApolloContextInternal {
     }
     catch {
         Write-Warning "Failed to retrieve Apollo context: $($_.Exception.Message)"
-        
+
         # Return empty context on error
         return [PSCustomObject]@{
             AppName = $null

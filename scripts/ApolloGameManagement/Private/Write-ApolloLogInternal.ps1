@@ -34,25 +34,25 @@ function Write-ApolloLogInternal {
     .NOTES
         This is an internal function and should not be called directly.
     #>
-    
+
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [string]$Message,
-        
+
         [Parameter()]
         [ValidateSet('DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL')]
         [string]$Level = 'INFO',
-        
+
         [Parameter()]
         [string]$Category = '',
-        
+
         [Parameter()]
         [string]$LogFile = '',
-        
+
         [Parameter()]
         [switch]$NoConsole,
-        
+
         [Parameter()]
         [switch]$NoFile
     )
@@ -67,17 +67,17 @@ function Write-ApolloLogInternal {
         $configuredLevel = $logConfig.logLevel
         $configuredLevelIndex = $logLevels.IndexOf($configuredLevel)
         $currentLevelIndex = $logLevels.IndexOf($Level)
-        
+
         if ($currentLevelIndex -lt $configuredLevelIndex) {
             return # Skip logging for levels below configured threshold
         }
 
         # Get Apollo context
         $apolloContext = Get-ApolloContextInternal
-        
+
         # Build timestamp
         $timestamp = Get-Date -Format $logConfig.timestampFormat
-        
+
         # Build context information
         $contextInfo = ""
         if ($apolloContext.IsApolloEnvironment) {
@@ -85,23 +85,23 @@ function Write-ApolloLogInternal {
             if ($apolloContext.AppName) { $contextParts += "App: $($apolloContext.AppName)" }
             if ($apolloContext.AppStatus) { $contextParts += "Status: $($apolloContext.AppStatus)" }
             if ($apolloContext.ClientName) { $contextParts += "Client: $($apolloContext.ClientName)" }
-            
+
             if ($contextParts.Count -gt 0) {
                 $contextInfo = " [$($contextParts -join '] [')]"
             }
         }
-        
+
         # Build category information
         $categoryInfo = if ($Category) { " [$Category]" } else { "" }
-        
+
         # Build final log message
         $logMessage = "[$timestamp] [$Level]$contextInfo$categoryInfo $Message"
-        
+
         # Console output
         if (-not $NoConsole -and $logConfig.enableConsoleOutput) {
-            Write-ConsoleLog -Message $logMessage -Level $Level
+            Write-ConsoleLog -Message $logMessage
         }
-        
+
         # File output
         if (-not $NoFile -and $logConfig.enableFileOutput) {
             $targetLogFile = if ($LogFile) { $LogFile } else { Get-LogFilePath -Config $logConfig }
@@ -113,13 +113,15 @@ function Write-ApolloLogInternal {
         try {
             $fallbackMessage = "[$((Get-Date).ToString('yyyy-MM-dd HH:mm:ss'))] [ERROR] ApolloLog: Failed to write log entry: $($_.Exception.Message)"
             Write-Warning $fallbackMessage
-            
+
             # Try to write to a fallback log file
             $fallbackLogFile = Join-Path ([System.IO.Path]::GetTempPath()) "apollo-fallback.log"
             Add-Content -Path $fallbackLogFile -Value $fallbackMessage -Encoding UTF8 -ErrorAction SilentlyContinue
         }
         catch {
             # Ultimate fallback - just continue silently to avoid breaking game launches
+            # This is intentionally silent to prevent logging failures from breaking game launches
+            $null = $_.Exception.Message  # Acknowledge the exception without action
         }
     }
 }
@@ -129,26 +131,14 @@ function Write-ConsoleLog {
     .SYNOPSIS
         Writes log message to console with appropriate colors.
     #>
-    
+
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [string]$Message,
-        
-        [Parameter(Mandatory)]
-        [string]$Level
+        [string]$Message
     )
 
-    $color = switch ($Level) {
-        'DEBUG' { 'Gray' }
-        'INFO' { 'White' }
-        'WARN' { 'Yellow' }
-        'ERROR' { 'Red' }
-        'FATAL' { 'Magenta' }
-        default { 'White' }
-    }
-    
-    Write-Host $Message -ForegroundColor $color
+    Write-Information $Message -InformationAction Continue
 }
 
 function Write-FileLog {
@@ -156,15 +146,15 @@ function Write-FileLog {
     .SYNOPSIS
         Writes log message to file with rotation support.
     #>
-    
+
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [string]$Message,
-        
+
         [Parameter(Mandatory)]
         [string]$LogFile,
-        
+
         [Parameter(Mandatory)]
         [PSCustomObject]$Config
     )
@@ -175,17 +165,17 @@ function Write-FileLog {
         if (-not (Test-Path $logDir)) {
             New-Item -ItemType Directory -Path $logDir -Force | Out-Null
         }
-        
+
         # Check for log rotation
         if ($Config.logRotationEnabled -and (Test-Path $LogFile)) {
             $logInfo = Get-Item $LogFile
             $maxSizeBytes = $Config.maxLogSizeMB * 1MB
-            
+
             if ($logInfo.Length -gt $maxSizeBytes) {
-                Rotate-LogFile -LogFile $LogFile -Config $Config
+                Move-LogFile -LogFile $LogFile -Config $Config
             }
         }
-        
+
         # Write log entry
         Add-Content -Path $LogFile -Value $Message -Encoding UTF8
     }
@@ -194,17 +184,17 @@ function Write-FileLog {
     }
 }
 
-function Rotate-LogFile {
+function Move-LogFile {
     <#
     .SYNOPSIS
         Rotates log file when it exceeds size limit.
     #>
-    
+
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [string]$LogFile,
-        
+
         [Parameter(Mandatory)]
         [PSCustomObject]$Config
     )
@@ -213,18 +203,18 @@ function Rotate-LogFile {
         $logDir = Split-Path $LogFile -Parent
         $logName = [System.IO.Path]::GetFileNameWithoutExtension($LogFile)
         $logExt = [System.IO.Path]::GetExtension($LogFile)
-        
+
         # Create rotated log filename
         $timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
         $rotatedLogFile = Join-Path $logDir "$logName`_$timestamp$logExt"
-        
+
         # Move current log to rotated name
         Move-Item -Path $LogFile -Destination $rotatedLogFile -Force
-        
+
         # Clean up old rotated logs
-        $rotatedLogs = Get-ChildItem -Path $logDir -Filter "$logName`_*$logExt" | 
+        $rotatedLogs = Get-ChildItem -Path $logDir -Filter "$logName`_*$logExt" |
                       Sort-Object LastWriteTime -Descending
-        
+
         if ($rotatedLogs.Count -gt $Config.maxLogFiles) {
             $logsToDelete = $rotatedLogs | Select-Object -Skip $Config.maxLogFiles
             $logsToDelete | Remove-Item -Force -ErrorAction SilentlyContinue
@@ -240,7 +230,7 @@ function Get-LogFilePath {
     .SYNOPSIS
         Gets the appropriate log file path based on configuration.
     #>
-    
+
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
@@ -249,6 +239,6 @@ function Get-LogFilePath {
 
     $logDir = $Config.logDirectory
     $logFileName = "ApolloGameManagement.log"
-    
+
     return Join-Path $logDir $logFileName
 }

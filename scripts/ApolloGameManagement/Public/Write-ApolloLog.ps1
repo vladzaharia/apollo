@@ -51,33 +51,33 @@ function Write-ApolloLog {
     .NOTES
         Log levels hierarchy (from lowest to highest):
         DEBUG < INFO < WARN < ERROR < FATAL
-        
+
         Only messages at or above the configured log level will be output.
-        
+
         The function automatically includes Apollo context information when available,
         including app name, status, and client information.
-        
+
         Log rotation is automatically handled based on configuration settings.
 
     .LINK
         Get-ApolloContext
         Get-ApolloConfiguration
     #>
-    
+
     [CmdletBinding()]
     [OutputType([String])]
     param(
         [Parameter(Mandatory, ValueFromPipeline)]
         [AllowEmptyString()]
         [string]$Message,
-        
+
         [Parameter()]
         [ValidateSet('DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL')]
         [string]$Level = 'INFO',
-        
+
         [Parameter()]
         [string]$Category = '',
-        
+
         [Parameter()]
         [ValidateScript({
             if ($_ -and -not (Test-Path (Split-Path $_ -Parent) -PathType Container)) {
@@ -86,13 +86,13 @@ function Write-ApolloLog {
             return $true
         })]
         [string]$LogFile = '',
-        
+
         [Parameter()]
         [switch]$NoConsole,
-        
+
         [Parameter()]
         [switch]$NoFile,
-        
+
         [Parameter()]
         [switch]$PassThru
     )
@@ -105,7 +105,7 @@ function Write-ApolloLog {
         try {
             # Call internal logging function
             Write-ApolloLogInternal -Message $Message -Level $Level -Category $Category -LogFile $LogFile -NoConsole:$NoConsole -NoFile:$NoFile
-            
+
             # Return formatted message if PassThru is requested
             if ($PassThru) {
                 $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
@@ -117,7 +117,7 @@ function Write-ApolloLog {
             # Fallback error handling
             $errorMessage = "Apollo logging failed: $($_.Exception.Message)"
             Write-Warning $errorMessage
-            
+
             if ($PassThru) {
                 return $errorMessage
             }

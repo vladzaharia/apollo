@@ -36,7 +36,7 @@ function Get-ApolloConfiguration {
         2. User configuration file (%LOCALAPPDATA%\Apollo\Config\apollo-config.json)
         3. System configuration file (%PROGRAMDATA%\Apollo\Config\apollo-config.json)
         4. Default configuration (module default)
-        
+
         Environment variables that override configuration:
         - APOLLO_LOG_LEVEL: Override logging.logLevel
         - APOLLO_TRACKING_DURATION: Override tracking.defaultDurationSeconds
@@ -48,14 +48,14 @@ function Get-ApolloConfiguration {
     .LINK
         Get-ApolloContext
     #>
-    
+
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
     param(
         [Parameter()]
         [ValidateSet('tracking', 'cleanup', 'logging', 'gamePatterns', 'security', 'performance', 'apollo', 'paths')]
         [string]$Section = '',
-        
+
         [Parameter()]
         [switch]$Refresh
     )
@@ -74,7 +74,7 @@ function Get-ApolloConfiguration {
         try {
             # Get full configuration
             $config = Get-ApolloConfigurationInternal
-            
+
             # Return specific section if requested
             if ($Section) {
                 if ($config.PSObject.Properties.Name -contains $Section) {
@@ -85,7 +85,7 @@ function Get-ApolloConfiguration {
                     Write-Error "Configuration section '$Section' not found. Available sections: $($config.PSObject.Properties.Name -join ', ')" -ErrorAction Stop
                 }
             }
-            
+
             # Return full configuration
             Write-Verbose "Returning complete configuration"
             return $config

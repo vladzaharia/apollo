@@ -35,7 +35,7 @@ function Get-ApolloContext {
     .NOTES
         This function reads Apollo environment variables to determine the current context.
         If no Apollo environment variables are found, IsApolloEnvironment will be false.
-        
+
         Environment variables read:
         - APOLLO_APP_NAME
         - APOLLO_APP_UUID
@@ -50,7 +50,7 @@ function Get-ApolloContext {
         Write-ApolloLog
         Get-ApolloConfiguration
     #>
-    
+
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
     param()

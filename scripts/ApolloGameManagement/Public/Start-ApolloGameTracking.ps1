@@ -49,9 +49,9 @@ function Start-ApolloGameTracking {
         This function should be called as a "prep" command in Apollo before launching a game.
         It captures a baseline of running processes, waits for the specified duration,
         then identifies new processes that started during the game launch.
-        
+
         The tracking data is saved to a JSON file for later use by Stop-ApolloGameProcesses.
-        
+
         Requires elevated privileges for comprehensive process monitoring.
 
     .LINK
@@ -59,28 +59,28 @@ function Start-ApolloGameTracking {
         Get-ApolloContext
         Write-ApolloLog
     #>
-    
+
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([PSCustomObject])]
     param(
         [Parameter()]
         [ValidateNotNullOrEmpty()]
         [string]$GameName = '',
-        
+
         [Parameter()]
         [ValidateRange(10, 300)]
         [int]$TrackingDurationSeconds = 0,
-        
+
         [Parameter()]
         [switch]$Force,
-        
+
         [Parameter()]
         [switch]$PassThru
     )
 
     begin {
         Write-Verbose "Initializing Apollo game process tracking"
-        
+
         # Check for elevated privileges
         if (-not (Test-IsElevated)) {
             Write-Warning "Running without elevated privileges. Process tracking may be limited."
@@ -91,7 +91,7 @@ function Start-ApolloGameTracking {
         try {
             # Get configuration
             $config = Get-ApolloConfiguration
-            
+
             # Resolve game name
             if (-not $GameName) {
                 $apolloContext = Get-ApolloContext
@@ -103,47 +103,47 @@ function Start-ApolloGameTracking {
                     throw "No game name provided and no Apollo context available"
                 }
             }
-            
+
             # Resolve tracking duration
             if ($TrackingDurationSeconds -eq 0) {
                 $TrackingDurationSeconds = $config.tracking.defaultDurationSeconds
             }
-            
+
             # Note: Tracking directory and file creation is now handled by Save-TrackingDataInternal
-            
+
             Write-ApolloLog -Message "Starting process tracking for: $GameName" -Level "INFO" -Category "ProcessTracking"
             Write-ApolloLog -Message "Tracking duration: $TrackingDurationSeconds seconds" -Level "INFO" -Category "ProcessTracking"
-            
+
             if ($PSCmdlet.ShouldProcess($GameName, "Start process tracking")) {
                 # Take initial process snapshot
                 Write-ApolloLog -Message "Taking initial process snapshot..." -Level "INFO" -Category "ProcessTracking"
                 $initialProcesses = Get-ProcessSnapshotInternal -UseCache:$false
-                
+
                 Write-ApolloLog -Message "Initial process count: $($initialProcesses.Count)" -Level "INFO" -Category "ProcessTracking"
-                
+
                 # Wait for the specified tracking duration
                 Write-ApolloLog -Message "Monitoring new processes for $TrackingDurationSeconds seconds..." -Level "INFO" -Category "ProcessTracking"
                 Start-Sleep -Seconds $TrackingDurationSeconds
-                
+
                 # Take final process snapshot
                 Write-ApolloLog -Message "Taking final process snapshot..." -Level "INFO" -Category "ProcessTracking"
                 $finalProcesses = Get-ProcessSnapshotInternal -UseCache:$false
-                
+
                 # Identify new processes
                 $newProcesses = $finalProcesses | Where-Object {
                     $finalProcess = $_
                     -not ($initialProcesses | Where-Object { $_.ProcessId -eq $finalProcess.ProcessId })
                 }
-                
+
                 Write-ApolloLog -Message "Found $($newProcesses.Count) new processes during tracking period" -Level "INFO" -Category "ProcessTracking"
-                
+
                 # Analyze new processes for game relation
                 $gameRelatedProcesses = @()
                 foreach ($process in $newProcesses) {
                     $isGameRelated = Test-GameRelatedProcessInternal -ProcessName $process.ProcessName -GameName $GameName -ProcessPath $process.ExecutablePath -WindowTitle $process.MainWindowTitle
                     $process.IsGameRelated = $isGameRelated
                     $process.Priority = Get-ProcessPriorityInternal -ProcessName $process.ProcessName -GameName $GameName
-                    
+
                     if ($isGameRelated) {
                         $gameRelatedProcesses += $process
                         Write-ApolloLog -Message "Game-related process detected: $($process.ProcessName) (PID: $($process.ProcessId))" -Level "INFO" -Category "ProcessTracking"
@@ -152,13 +152,13 @@ function Start-ApolloGameTracking {
                         Write-ApolloLog -Message "System process detected: $($process.ProcessName) (PID: $($process.ProcessId))" -Level "DEBUG" -Category "ProcessTracking"
                     }
                 }
-                
+
                 # Save tracking data
-                $trackingData = Save-TrackingDataInternal -GameName $GameName -InitialProcesses $initialProcesses -FinalProcesses $finalProcesses -NewProcesses $newProcesses -Config $config -Force:$Force
-                
+                Save-TrackingDataInternal -GameName $GameName -InitialProcesses $initialProcesses -FinalProcesses $finalProcesses -NewProcesses $newProcesses -Config $config -Force:$Force | Out-Null
+
                 Write-ApolloLog -Message "Process tracking completed successfully for: $GameName" -Level "INFO" -Category "ProcessTracking"
                 Write-ApolloLog -Message "Game-related processes identified: $($gameRelatedProcesses.Count)" -Level "INFO" -Category "ProcessTracking"
-                
+
                 # Return results if requested
                 if ($PassThru) {
                     $trackingFile = Get-TrackingFilePathInternal -GameName $GameName -Config $config
@@ -179,7 +179,7 @@ function Start-ApolloGameTracking {
         catch {
             $errorMessage = "Failed to start Apollo game tracking: $($_.Exception.Message)"
             Write-ApolloLog -Message $errorMessage -Level "ERROR" -Category "ProcessTracking"
-            
+
             if ($PassThru) {
                 return [PSCustomObject]@{
                     GameName = $GameName
@@ -188,7 +188,7 @@ function Start-ApolloGameTracking {
                     Timestamp = Get-Date
                 }
             }
-            
+
             Write-Error $errorMessage -ErrorAction Stop
         }
     }
@@ -203,7 +203,7 @@ function Test-IsElevated {
     .SYNOPSIS
         Tests if the current PowerShell session is running with elevated privileges.
     #>
-    
+
     [CmdletBinding()]
     [OutputType([bool])]
     param()

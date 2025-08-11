@@ -16,7 +16,7 @@ function Get-IntelligentProcessesInternal {
     .NOTES
         This is an internal function and should not be called directly.
     #>
-    
+
     [CmdletBinding()]
     [OutputType([string[]])]
     param(
@@ -26,26 +26,26 @@ function Get-IntelligentProcessesInternal {
 
     try {
         Write-ApolloLogInternal -Message "Starting intelligent process detection for: $GameName" -Level "DEBUG" -Category "ProcessDetection"
-        
+
         # Get all currently running processes
         $allProcesses = Get-Process | Where-Object { $_.ProcessName -and $_.ProcessName.Length -gt 0 }
-        
+
         # Create search patterns based on game name
         $gameNameClean = $GameName -replace '[^\w\s]', '' -replace '\s+', ' '
         $gameWords = $gameNameClean -split '\s+' | Where-Object { $_.Length -gt 2 }
-        
+
         $detectedProcesses = @()
-        
+
         foreach ($process in $allProcesses) {
             $processName = $process.ProcessName
             $isGameRelated = $false
-            
+
             # Pattern 1: Direct name match (case insensitive)
             if ($processName -like "*$($gameNameClean -replace '\s', '*')*") {
                 $isGameRelated = $true
                 Write-ApolloLogInternal -Message "Direct match: $processName" -Level "DEBUG" -Category "ProcessDetection"
             }
-            
+
             # Pattern 2: Individual word matches
             if (-not $isGameRelated) {
                 foreach ($word in $gameWords) {
@@ -56,33 +56,33 @@ function Get-IntelligentProcessesInternal {
                     }
                 }
             }
-            
+
             # Pattern 3: Common game executable patterns
             if (-not $isGameRelated) {
                 $gameExecutablePatterns = @(
                     "*game*.exe",
-                    "*launcher*.exe", 
+                    "*launcher*.exe",
                     "*client*.exe",
                     "*-Win64-Shipping.exe",
                     "*-Win32-Shipping.exe",
                     "*_game.exe",
                     "*Game.exe"
                 )
-                
+
                 foreach ($pattern in $gameExecutablePatterns) {
                     if ($processName -like $pattern) {
                         # Additional check: see if any game words are in the process path or window title
                         try {
                             $processPath = $process.Path
                             $hasGameWord = $false
-                            
+
                             foreach ($word in $gameWords) {
                                 if ($processPath -like "*$word*") {
                                     $hasGameWord = $true
                                     break
                                 }
                             }
-                            
+
                             if ($hasGameWord) {
                                 $isGameRelated = $true
                                 Write-ApolloLogInternal -Message "Executable pattern match: $processName" -Level "DEBUG" -Category "ProcessDetection"
@@ -91,11 +91,12 @@ function Get-IntelligentProcessesInternal {
                         }
                         catch {
                             # Can't access process path, skip this check
+                            Write-ApolloLogInternal -Message "Unable to access process path for $processName`: $($_.Exception.Message)" -Level "DEBUG" -Category "ProcessDetection"
                         }
                     }
                 }
             }
-            
+
             # Pattern 4: Steam/Epic/Other launcher child processes
             if (-not $isGameRelated) {
                 try {
@@ -103,11 +104,11 @@ function Get-IntelligentProcessesInternal {
                     $processAge = (Get-Date) - $process.StartTime
                     if ($processAge.TotalMinutes -le 5) {
                         # Check if parent process is a known game launcher
-                        $parentProcess = Get-WmiObject -Class Win32_Process -Filter "ProcessId = $($process.Id)" -ErrorAction SilentlyContinue
+                        $parentProcess = Get-CimInstance -ClassName Win32_Process -Filter "ProcessId = $($process.Id)" -ErrorAction SilentlyContinue
                         if ($parentProcess) {
                             $parentName = (Get-Process -Id $parentProcess.ParentProcessId -ErrorAction SilentlyContinue).ProcessName
                             $launcherPatterns = @("steam", "epicgameslauncher", "origin", "uplay", "battlenet", "gog")
-                            
+
                             foreach ($launcher in $launcherPatterns) {
                                 if ($parentName -like "*$launcher*") {
                                     # Check if process name contains any game words
@@ -126,21 +127,22 @@ function Get-IntelligentProcessesInternal {
                 }
                 catch {
                     # WMI or process access failed, skip this check
+                    Write-ApolloLogInternal -Message "WMI or process access failed for launcher detection: $($_.Exception.Message)" -Level "DEBUG" -Category "ProcessDetection"
                 }
             }
-            
+
             if ($isGameRelated) {
                 $detectedProcesses += $processName
             }
         }
-        
+
         # Remove duplicates and common system processes
         $detectedProcesses = $detectedProcesses | Sort-Object -Unique
         $systemProcesses = @("explorer", "winlogon", "csrss", "smss", "services", "lsass", "svchost", "dwm", "conhost")
         $detectedProcesses = $detectedProcesses | Where-Object { $_ -notin $systemProcesses }
-        
+
         Write-ApolloLogInternal -Message "Intelligent detection found $($detectedProcesses.Count) processes: $($detectedProcesses -join ', ')" -Level "INFO" -Category "ProcessDetection"
-        
+
         return $detectedProcesses
     }
     catch {

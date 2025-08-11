@@ -51,7 +51,7 @@ function Clear-ApolloTrackingFiles {
         This function is useful for maintenance and preventing tracking files from
         accumulating over time. It respects the configured tracking directory and
         only processes files with the configured tracking file extension.
-        
+
         Requires appropriate permissions to delete files in the tracking directory.
 
     .LINK
@@ -59,31 +59,31 @@ function Clear-ApolloTrackingFiles {
         Stop-ApolloGameProcesses
         Get-ApolloConfiguration
     #>
-    
+
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
     [OutputType([PSCustomObject])]
     param(
         [Parameter()]
         [ValidateNotNullOrEmpty()]
         [string]$GameName = '',
-        
+
         [Parameter()]
         [ValidateRange(0, 365)]
         [int]$OlderThanDays = 7,
-        
+
         [Parameter()]
         [switch]$All,
-        
+
         [Parameter()]
         [switch]$Force,
-        
+
         [Parameter()]
         [switch]$PassThru
     )
 
     begin {
         Write-Verbose "Initializing Apollo tracking file cleanup"
-        
+
         # Check for elevated privileges if Force is specified
         if ($Force -and -not (Test-IsElevated)) {
             Write-Warning "Running without elevated privileges. Some files may not be removable."
@@ -94,17 +94,17 @@ function Clear-ApolloTrackingFiles {
         try {
             # Get configuration
             $config = Get-ApolloConfiguration
-            
+
             # Initialize results
             $filesFound = 0
             $filesRemoved = 0
             $filesSkipped = 0
             $filesToProcess = @()
-            
+
             if ($GameName) {
                 # Remove specific game tracking file
                 Write-ApolloLog -Message "Clearing tracking file for specific game: $GameName" -Level "INFO" -Category "TrackingCleanup"
-                
+
                 $trackingFile = Get-TrackingFilePathInternal -GameName $GameName -Config $config
                 if (Test-Path $trackingFile) {
                     $filesToProcess = @(Get-Item $trackingFile)
@@ -117,10 +117,10 @@ function Clear-ApolloTrackingFiles {
             else {
                 # Get all tracking files
                 Write-ApolloLog -Message "Scanning for tracking files to clean up" -Level "INFO" -Category "TrackingCleanup"
-                
+
                 $allTrackingFiles = Get-AllTrackingFilesInternal -Config $config
                 $filesFound = $allTrackingFiles.Count
-                
+
                 if ($All) {
                     Write-ApolloLog -Message "Clearing all $filesFound tracking files" -Level "INFO" -Category "TrackingCleanup"
                     $filesToProcess = $allTrackingFiles
@@ -129,11 +129,11 @@ function Clear-ApolloTrackingFiles {
                     # Filter by age
                     $cutoffDate = (Get-Date).AddDays(-$OlderThanDays)
                     $filesToProcess = $allTrackingFiles | Where-Object { $_.LastWriteTime -lt $cutoffDate }
-                    
+
                     Write-ApolloLog -Message "Found $($filesToProcess.Count) tracking files older than $OlderThanDays days" -Level "INFO" -Category "TrackingCleanup"
                 }
             }
-            
+
             # Process files for removal
             if ($filesToProcess.Count -gt 0) {
                 $confirmMessage = if ($GameName) {
@@ -143,7 +143,7 @@ function Clear-ApolloTrackingFiles {
                 } else {
                     "Remove $($filesToProcess.Count) tracking files older than $OlderThanDays days"
                 }
-                
+
                 if ($PSCmdlet.ShouldProcess($confirmMessage, "Clear tracking files")) {
                     foreach ($file in $filesToProcess) {
                         try {
@@ -165,9 +165,9 @@ function Clear-ApolloTrackingFiles {
             else {
                 Write-ApolloLog -Message "No tracking files found matching the specified criteria" -Level "INFO" -Category "TrackingCleanup"
             }
-            
+
             Write-ApolloLog -Message "Tracking file cleanup completed. Found: $filesFound, Removed: $filesRemoved, Skipped: $filesSkipped" -Level "INFO" -Category "TrackingCleanup"
-            
+
             # Return results if requested
             if ($PassThru) {
                 return [PSCustomObject]@{
@@ -182,7 +182,7 @@ function Clear-ApolloTrackingFiles {
         catch {
             $errorMessage = "Failed to clear Apollo tracking files: $($_.Exception.Message)"
             Write-ApolloLog -Message $errorMessage -Level "ERROR" -Category "TrackingCleanup"
-            
+
             if ($PassThru) {
                 return [PSCustomObject]@{
                     FilesFound = $filesFound
@@ -193,7 +193,7 @@ function Clear-ApolloTrackingFiles {
                     Timestamp = Get-Date
                 }
             }
-            
+
             Write-Error $errorMessage -ErrorAction Stop
         }
     }

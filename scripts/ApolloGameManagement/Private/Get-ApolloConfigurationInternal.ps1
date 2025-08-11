@@ -24,7 +24,7 @@ function Get-ApolloConfigurationInternal {
         3. System configuration file
         4. Default configuration
     #>
-    
+
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
     param()
@@ -36,10 +36,10 @@ function Get-ApolloConfigurationInternal {
         # Define configuration file paths
         $systemConfigPath = Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) 'Apollo\Config\apollo-config.json'
         $userConfigPath = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Apollo\Config\apollo-config.json'
-        
+
         # Check for custom config path from environment
         $customConfigPath = [Environment]::GetEnvironmentVariable('APOLLO_CONFIG_PATH')
-        
+
         # Load system configuration if it exists
         if (Test-Path $systemConfigPath) {
             try {
@@ -77,7 +77,7 @@ function Get-ApolloConfigurationInternal {
         }
 
         # Apply environment variable overrides
-        $config = Apply-EnvironmentOverrides -Config $config
+        $config = Set-EnvironmentOverrides -Config $config
 
         # Expand environment variables in paths
         $config = Expand-ConfigurationPaths -Config $config
@@ -101,18 +101,18 @@ function Merge-Configuration {
     .PARAMETER OverrideConfig
         The configuration object to merge into the base.
     #>
-    
+
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [PSCustomObject]$BaseConfig,
-        
+
         [Parameter(Mandatory)]
         [PSCustomObject]$OverrideConfig
     )
 
     $merged = $BaseConfig.PSObject.Copy()
-    
+
     foreach ($property in $OverrideConfig.PSObject.Properties) {
         if ($merged.PSObject.Properties.Name -contains $property.Name) {
             if ($property.Value -is [PSCustomObject] -and $merged.$($property.Name) -is [PSCustomObject]) {
@@ -129,17 +129,17 @@ function Merge-Configuration {
             $merged | Add-Member -MemberType NoteProperty -Name $property.Name -Value $property.Value
         }
     }
-    
+
     return $merged
 }
 
-function Apply-EnvironmentOverrides {
+function Set-EnvironmentOverrides {
     <#
     .SYNOPSIS
         Applies environment variable overrides to configuration.
     #>
-    
-    [CmdletBinding()]
+
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory)]
         [PSCustomObject]$Config
@@ -171,33 +171,35 @@ function Set-ConfigurationValue {
     .SYNOPSIS
         Sets a nested configuration value using a path array.
     #>
-    
-    [CmdletBinding()]
+
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory)]
         [PSCustomObject]$Config,
-        
+
         [Parameter(Mandatory)]
         [string[]]$Path,
-        
+
         [Parameter(Mandatory)]
         $Value
     )
 
-    $current = $Config
+    if ($PSCmdlet.ShouldProcess("Configuration path: $($Path -join '.')", "Set configuration value to: $Value")) {
+        $current = $Config
     for ($i = 0; $i -lt $Path.Length - 1; $i++) {
         if (-not $current.PSObject.Properties.Name -contains $Path[$i]) {
             $current | Add-Member -MemberType NoteProperty -Name $Path[$i] -Value ([PSCustomObject]@{})
         }
         $current = $current.$($Path[$i])
     }
-    
+
     $finalProperty = $Path[-1]
     if ($current.PSObject.Properties.Name -contains $finalProperty) {
         $current.$finalProperty = $Value
     }
     else {
         $current | Add-Member -MemberType NoteProperty -Name $finalProperty -Value $Value
+    }
     }
 }
 
@@ -206,7 +208,7 @@ function Expand-ConfigurationPaths {
     .SYNOPSIS
         Expands environment variables in configuration paths.
     #>
-    
+
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
@@ -226,7 +228,7 @@ function Expand-ConfigurationPaths {
     if ($Config.tracking.trackingDirectory) {
         $Config.tracking.trackingDirectory = [Environment]::ExpandEnvironmentVariables($Config.tracking.trackingDirectory)
     }
-    
+
     if ($Config.logging.logDirectory) {
         $Config.logging.logDirectory = [Environment]::ExpandEnvironmentVariables($Config.logging.logDirectory)
     }

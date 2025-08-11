@@ -31,25 +31,25 @@ function Save-TrackingDataInternal {
     .NOTES
         This is an internal function and should not be called directly.
     #>
-    
+
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
     param(
         [Parameter(Mandatory)]
         [string]$GameName,
-        
+
         [Parameter(Mandatory)]
         [Array]$InitialProcesses,
-        
+
         [Parameter(Mandatory)]
         [Array]$FinalProcesses,
-        
+
         [Parameter(Mandatory)]
         [Array]$NewProcesses,
-        
+
         [Parameter(Mandatory)]
         [PSCustomObject]$Config,
-        
+
         [Parameter()]
         [switch]$Force
     )
@@ -111,7 +111,7 @@ function Save-TrackingDataInternal {
         # Save tracking data to the game-specific file
         $trackingData | ConvertTo-Json -Depth 10 | Set-Content $TrackingFile -Encoding UTF8
         Write-ApolloLogInternal -Message "Tracking data saved for $GameName to: $TrackingFile" -Level "INFO" -Category "ProcessTracking"
-        
+
         return $trackingData
     }
     catch {
