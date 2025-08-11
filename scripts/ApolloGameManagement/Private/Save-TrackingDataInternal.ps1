@@ -19,9 +19,6 @@ function Save-TrackingDataInternal {
     .PARAMETER NewProcesses
         Array of new processes detected during tracking.
 
-    .PARAMETER TrackingFile
-        Path to the tracking data file.
-
     .PARAMETER Config
         Configuration object.
 
@@ -51,9 +48,6 @@ function Save-TrackingDataInternal {
         [Array]$NewProcesses,
         
         [Parameter(Mandatory)]
-        [string]$TrackingFile,
-        
-        [Parameter(Mandatory)]
         [PSCustomObject]$Config,
         
         [Parameter()]
@@ -61,6 +55,16 @@ function Save-TrackingDataInternal {
     )
 
     try {
+        # Get the tracking file path for this specific game
+        $TrackingFile = Get-TrackingFilePathInternal -GameName $GameName -Config $Config
+
+        # Ensure tracking directory exists
+        $trackingDir = Split-Path $TrackingFile -Parent
+        if (-not (Test-Path $trackingDir)) {
+            New-Item -ItemType Directory -Path $trackingDir -Force | Out-Null
+            Write-ApolloLogInternal -Message "Created tracking directory: $trackingDir" -Level "INFO" -Category "ProcessTracking"
+        }
+
         # Build tracking data object
         $trackingData = [PSCustomObject]@{
             GameName = $GameName
@@ -89,41 +93,24 @@ function Save-TrackingDataInternal {
                 }
             }
         }
-        
-        # Load existing tracking data
-        $allTrackingData = @()
-        if (Test-Path $TrackingFile) {
+
+        # For per-game files, we simply overwrite the existing file (if Force is specified) or create a new one
+        if (Test-Path $TrackingFile -and -not $Force) {
+            Write-ApolloLogInternal -Message "Tracking file already exists for $GameName. Use -Force to overwrite." -Level "WARN" -Category "ProcessTracking"
+            # Load existing data and return it instead of overwriting
             try {
                 $existingData = Get-Content $TrackingFile -Raw | ConvertFrom-Json
-                if ($existingData -is [array]) {
-                    $allTrackingData = $existingData
-                }
-                else {
-                    $allTrackingData = @($existingData)
-                }
+                Write-ApolloLogInternal -Message "Returning existing tracking data for $GameName" -Level "INFO" -Category "ProcessTracking"
+                return $existingData
             }
             catch {
-                Write-ApolloLogInternal -Message "Warning: Could not read existing tracking data: $($_.Exception.Message)" -Level "WARN" -Category "ProcessTracking"
+                Write-ApolloLogInternal -Message "Warning: Could not read existing tracking data, creating new: $($_.Exception.Message)" -Level "WARN" -Category "ProcessTracking"
             }
         }
-        
-        # Remove existing entry for this game if Force is specified
-        if ($Force) {
-            $allTrackingData = $allTrackingData | Where-Object { $_.GameName -ne $GameName }
-        }
-        
-        # Add new tracking data
-        $allTrackingData += $trackingData
-        
-        # Keep only the configured number of entries
-        $maxEntries = $Config.tracking.maxTrackingEntries
-        if ($allTrackingData.Count -gt $maxEntries) {
-            $allTrackingData = $allTrackingData | Sort-Object Timestamp -Descending | Select-Object -First $maxEntries
-        }
-        
-        # Save updated tracking data
-        $allTrackingData | ConvertTo-Json -Depth 10 | Set-Content $TrackingFile -Encoding UTF8
-        Write-ApolloLogInternal -Message "Tracking data saved for $GameName" -Level "INFO" -Category "ProcessTracking"
+
+        # Save tracking data to the game-specific file
+        $trackingData | ConvertTo-Json -Depth 10 | Set-Content $TrackingFile -Encoding UTF8
+        Write-ApolloLogInternal -Message "Tracking data saved for $GameName to: $TrackingFile" -Level "INFO" -Category "ProcessTracking"
         
         return $trackingData
     }

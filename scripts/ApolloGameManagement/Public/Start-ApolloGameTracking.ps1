@@ -14,8 +14,7 @@ function Start-ApolloGameTracking {
     .PARAMETER TrackingDurationSeconds
         Duration in seconds to monitor for new processes. Default is from configuration.
 
-    .PARAMETER TrackingFile
-        Custom path for the tracking data file. If not specified, uses configuration default.
+
 
     .PARAMETER Force
         Overwrite existing tracking data for the same game.
@@ -73,16 +72,6 @@ function Start-ApolloGameTracking {
         [int]$TrackingDurationSeconds = 0,
         
         [Parameter()]
-        [ValidateScript({
-            # Validate that the path is not empty and is a valid path format
-            if ([string]::IsNullOrWhiteSpace($_)) {
-                throw "Tracking file path cannot be empty"
-            }
-            return $true
-        })]
-        [string]$TrackingFile = '',
-        
-        [Parameter()]
         [switch]$Force,
         
         [Parameter()]
@@ -120,19 +109,7 @@ function Start-ApolloGameTracking {
                 $TrackingDurationSeconds = $config.tracking.defaultDurationSeconds
             }
             
-            # Resolve tracking file path
-            if (-not $TrackingFile) {
-                $TrackingFile = [Environment]::ExpandEnvironmentVariables($config.tracking.trackingFilePath)
-            }
-            
-            # Ensure tracking directory exists
-            $trackingDir = Split-Path $TrackingFile -Parent
-            if (-not (Test-Path $trackingDir)) {
-                if ($PSCmdlet.ShouldProcess($trackingDir, "Create tracking directory")) {
-                    New-Item -ItemType Directory -Path $trackingDir -Force | Out-Null
-                    Write-ApolloLog -Message "Created tracking directory: $trackingDir" -Level "INFO"
-                }
-            }
+            # Note: Tracking directory and file creation is now handled by Save-TrackingDataInternal
             
             Write-ApolloLog -Message "Starting process tracking for: $GameName" -Level "INFO" -Category "ProcessTracking"
             Write-ApolloLog -Message "Tracking duration: $TrackingDurationSeconds seconds" -Level "INFO" -Category "ProcessTracking"
@@ -177,13 +154,14 @@ function Start-ApolloGameTracking {
                 }
                 
                 # Save tracking data
-                $trackingData = Save-TrackingDataInternal -GameName $GameName -InitialProcesses $initialProcesses -FinalProcesses $finalProcesses -NewProcesses $newProcesses -TrackingFile $TrackingFile -Config $config -Force:$Force
+                $trackingData = Save-TrackingDataInternal -GameName $GameName -InitialProcesses $initialProcesses -FinalProcesses $finalProcesses -NewProcesses $newProcesses -Config $config -Force:$Force
                 
                 Write-ApolloLog -Message "Process tracking completed successfully for: $GameName" -Level "INFO" -Category "ProcessTracking"
                 Write-ApolloLog -Message "Game-related processes identified: $($gameRelatedProcesses.Count)" -Level "INFO" -Category "ProcessTracking"
                 
                 # Return results if requested
                 if ($PassThru) {
+                    $trackingFile = Get-TrackingFilePathInternal -GameName $GameName -Config $config
                     return [PSCustomObject]@{
                         GameName = $GameName
                         TrackingDuration = $TrackingDurationSeconds
@@ -191,7 +169,7 @@ function Start-ApolloGameTracking {
                         GameRelatedProcessCount = $gameRelatedProcesses.Count
                         NewProcesses = $newProcesses
                         GameRelatedProcesses = $gameRelatedProcesses
-                        TrackingFile = $TrackingFile
+                        TrackingFile = $trackingFile
                         Success = $true
                         Timestamp = Get-Date
                     }

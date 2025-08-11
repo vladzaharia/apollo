@@ -10,8 +10,8 @@ function Get-TrackedProcessesInternal {
     .PARAMETER GameName
         Name of the game to retrieve tracked processes for.
 
-    .PARAMETER TrackingFile
-        Path to the tracking data file.
+    .PARAMETER Config
+        Configuration object containing tracking settings.
 
     .OUTPUTS
         [string[]] Array of process names that were tracked for the game
@@ -25,14 +25,17 @@ function Get-TrackedProcessesInternal {
     param(
         [Parameter(Mandatory)]
         [string]$GameName,
-        
+
         [Parameter(Mandatory)]
-        [string]$TrackingFile
+        [PSCustomObject]$Config
     )
 
     try {
+        # Get the tracking file path for this specific game
+        $TrackingFile = Get-TrackingFilePathInternal -GameName $GameName -Config $Config
+
         if (-not (Test-Path $TrackingFile)) {
-            Write-ApolloLogInternal -Message "No tracking file found, creating on-the-fly tracking data" -Level "INFO" -Category "ProcessCleanup"
+            Write-ApolloLogInternal -Message "No tracking file found for $GameName, creating on-the-fly tracking data" -Level "INFO" -Category "ProcessCleanup"
 
             # Create tracking data dynamically by detecting current processes
             $currentProcesses = Get-IntelligentProcessesInternal -GameName $GameName
@@ -73,20 +76,9 @@ function Get-TrackedProcessesInternal {
                 return @()
             }
         }
-        
-        # Load tracking data
-        $trackingData = Get-Content $TrackingFile -Raw | ConvertFrom-Json
-        
-        # Handle both single object and array
-        if ($trackingData -isnot [array]) {
-            $trackingData = @($trackingData)
-        }
-        
-        # Find the most recent tracking data for this game
-        $gameTrackingData = $trackingData | 
-            Where-Object { $_.GameName -eq $GameName } | 
-            Sort-Object Timestamp -Descending | 
-            Select-Object -First 1
+
+        # Load tracking data from the game-specific file
+        $gameTrackingData = Get-Content $TrackingFile -Raw | ConvertFrom-Json
         
         if ($gameTrackingData) {
             Write-ApolloLogInternal -Message "Found tracking data for $GameName from $($gameTrackingData.Timestamp)" -Level "INFO" -Category "ProcessCleanup"

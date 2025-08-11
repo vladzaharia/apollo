@@ -18,8 +18,7 @@ function Stop-ApolloGameProcesses {
     .PARAMETER FallbackProcesses
         Array of process names to use as fallback if no tracked or detected processes are found.
 
-    .PARAMETER TrackingFile
-        Custom path for the tracking data file. If not specified, uses configuration default.
+
 
     .PARAMETER GraceTimeoutSeconds
         Time to wait for graceful process termination before force killing. Default is from configuration.
@@ -83,14 +82,7 @@ function Stop-ApolloGameProcesses {
         [Parameter()]
         [string[]]$FallbackProcesses = @(),
         
-        [Parameter()]
-        [ValidateScript({
-            if ($_ -and -not (Test-Path $_)) {
-                throw "Tracking file does not exist: $_"
-            }
-            return $true
-        })]
-        [string]$TrackingFile = '',
+
         
         [Parameter()]
         [ValidateRange(1, 60)]
@@ -134,10 +126,7 @@ function Stop-ApolloGameProcesses {
                 $GraceTimeoutSeconds = $config.cleanup.graceTimeoutSeconds
             }
             
-            # Resolve tracking file path
-            if (-not $TrackingFile) {
-                $TrackingFile = [Environment]::ExpandEnvironmentVariables($config.tracking.trackingFilePath)
-            }
+
             
             Write-ApolloLog -Message "Starting intelligent process cleanup for: $GameName" -Level "INFO" -Category "ProcessCleanup"
             
@@ -146,7 +135,7 @@ function Stop-ApolloGameProcesses {
             $detectionMethod = ""
             
             # Tier 1: Use tracked processes
-            $trackedProcesses = Get-TrackedProcessesInternal -GameName $GameName -TrackingFile $TrackingFile
+            $trackedProcesses = Get-TrackedProcessesInternal -GameName $GameName -Config $config
             
             if ($trackedProcesses -and $trackedProcesses.Count -gt 0) {
                 Write-ApolloLog -Message "Using tracked processes (Tier 1)" -Level "INFO" -Category "ProcessCleanup"
@@ -198,6 +187,14 @@ function Stop-ApolloGameProcesses {
                 Write-ApolloLog -Message "Process cleanup completed for: $GameName" -Level "INFO" -Category "ProcessCleanup"
                 Write-ApolloLog -Message "Processes closed gracefully: $($cleanupResult.ProcessesClosed)" -Level "INFO" -Category "ProcessCleanup"
                 Write-ApolloLog -Message "Processes force killed: $($cleanupResult.ProcessesKilled)" -Level "INFO" -Category "ProcessCleanup"
+
+                # Clean up tracking file if cleanup was successful and cleanup on exit is enabled
+                if ($cleanupResult.Success -and $config.tracking.enableCleanupOnExit) {
+                    $removed = Remove-GameTrackingFileInternal -GameName $GameName -Config $config
+                    if ($removed) {
+                        Write-ApolloLog -Message "Cleaned up tracking file for: $GameName" -Level "INFO" -Category "ProcessCleanup"
+                    }
+                }
                 
                 # Return results if requested
                 if ($PassThru) {

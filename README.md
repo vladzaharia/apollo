@@ -20,6 +20,19 @@ apollo/
 
 ## 🔧 How It Works
 
+### Per-Game Tracking System
+The system now uses individual tracking files for each game, allowing multiple games to run simultaneously:
+
+- **Tracking Directory**: `%LOCALAPPDATA%\Apollo\Tracking\`
+- **File Format**: `{sanitized-game-name}.json`
+- **Automatic Cleanup**: Files are removed after successful game cleanup
+- **Concurrent Support**: Multiple games can be tracked independently
+
+### Tracking File Management
+- `Clear-ApolloTrackingFiles`: Clean up old or specific tracking files
+- Automatic file rotation and cleanup based on configuration
+- Safe filename generation from game names
+
 ### Global Prep Commands
 The system now uses Apollo's `global_prep_cmd` configuration in `apollo.conf`:
 
@@ -37,6 +50,8 @@ global_prep_cmd = [
 - **Track Phase**: When any game starts, the global "do" command runs `Smart-GameCleanup.ps1 -Action track`
 - **Cleanup Phase**: When any game stops, the global "undo" command runs `Smart-GameCleanup.ps1 -Action cleanup`
 - **Intelligent Detection**: The system automatically detects game processes and cleans them up appropriately
+- **Per-Game Tracking**: Each game gets its own tracking file in `%LOCALAPPDATA%\Apollo\Tracking\` for concurrent game support
+- **Automatic Cleanup**: Tracking files are automatically removed after successful game cleanup
 
 ### App Configuration
 All apps in `apps.json` now use the simplified format:

@@ -1,10 +1,12 @@
 {
   "tracking": {
     "defaultDurationSeconds": 60,
-    "trackingFilePath": "%TEMP%\\apollo\\process-tracking.json",
+    "trackingDirectory": "%LOCALAPPDATA%\\Apollo\\Tracking",
     "maxTrackingEntries": 50,
     "processSnapshotInterval": 1,
-    "enableDetailedLogging": true
+    "enableDetailedLogging": true,
+    "fileExtension": ".json",
+    "enableCleanupOnExit": true
   },
   "cleanup": {
     "graceTimeoutSeconds": 10,

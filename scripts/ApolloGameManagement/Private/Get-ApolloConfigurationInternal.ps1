@@ -223,8 +223,8 @@ function Expand-ConfigurationPaths {
     }
 
     # Expand specific path properties
-    if ($Config.tracking.trackingFilePath) {
-        $Config.tracking.trackingFilePath = [Environment]::ExpandEnvironmentVariables($Config.tracking.trackingFilePath)
+    if ($Config.tracking.trackingDirectory) {
+        $Config.tracking.trackingDirectory = [Environment]::ExpandEnvironmentVariables($Config.tracking.trackingDirectory)
     }
     
     if ($Config.logging.logDirectory) {
