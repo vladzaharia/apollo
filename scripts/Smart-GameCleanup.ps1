@@ -1,3 +1,5 @@
+#Requires -Version 7.2
+
 <#
 .SYNOPSIS
     Apollo Game Management - Intelligent process tracking and cleanup orchestrator.
@@ -51,6 +53,7 @@
 
     Version: 2.0.0
     Author: Apollo Game Management System
+    PowerShell: 7.2+
 
 .LINK
     Start-ApolloGameTracking
@@ -67,9 +70,33 @@ param(
 
     [Parameter()]
     [ValidateNotNullOrEmpty()]
+    [ValidateLength(1, 255)]
+    [ValidateScript({
+        # Import the module to access security functions
+        if (-not (Get-Command Test-SecurityValidation -ErrorAction SilentlyContinue)) {
+            Import-Module "$PSScriptRoot\ApolloGameManagement\ApolloGameManagement.psm1" -Force
+        }
+        $validation = Test-SecurityValidation -InputString $_ -ValidationLevel 'Standard'
+        if (-not $validation.IsValid) {
+            throw "Game name validation failed: $($validation.SecurityWarnings -join '; ')"
+        }
+        return $true
+    })]
     [string]$GameName = '',
 
     [Parameter()]
+    [ValidateScript({
+        foreach ($process in $_) {
+            if (-not (Get-Command Test-SecurityValidation -ErrorAction SilentlyContinue)) {
+                Import-Module "$PSScriptRoot\ApolloGameManagement\ApolloGameManagement.psm1" -Force
+            }
+            $validation = Test-SecurityValidation -ProcessName $process -ValidationLevel 'Standard'
+            if (-not $validation.IsValid) {
+                throw "Fallback process '$process' validation failed: $($validation.SecurityWarnings -join '; ')"
+            }
+        }
+        return $true
+    })]
     [string[]]$FallbackProcesses = @(),
 
     [Parameter()]

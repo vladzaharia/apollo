@@ -66,6 +66,14 @@ function Start-ApolloGameTracking {
     param(
         [Parameter()]
         [ValidateNotNullOrEmpty()]
+        [ValidateLength(1, 255)]
+        [ValidateScript({
+            $validation = Test-SecurityValidation -InputString $_ -ValidationLevel 'Standard'
+            if (-not $validation.IsValid) {
+                throw "Game name validation failed: $($validation.SecurityWarnings -join '; ')"
+            }
+            return $true
+        })]
         [string]$GameName = '',
         
         [Parameter()]
@@ -74,9 +82,22 @@ function Start-ApolloGameTracking {
         
         [Parameter()]
         [ValidateScript({
-            # Validate that the path is not empty and is a valid path format
             if ([string]::IsNullOrWhiteSpace($_)) {
                 throw "Tracking file path cannot be empty"
+            }
+            # Enhanced security validation for file paths
+            $validation = Test-SecurityValidation -FilePath $_ -ValidationLevel 'Standard'
+            if (-not $validation.IsValid) {
+                throw "Tracking file path validation failed: $($validation.SecurityWarnings -join '; ')"
+            }
+            # Ensure parent directory exists or can be created
+            $parentDir = Split-Path $_ -Parent
+            if ($parentDir -and -not (Test-Path $parentDir)) {
+                try {
+                    New-Item -ItemType Directory -Path $parentDir -Force -WhatIf | Out-Null
+                } catch {
+                    throw "Cannot create tracking file directory: $parentDir"
+                }
             }
             return $true
         })]
@@ -99,7 +120,7 @@ function Start-ApolloGameTracking {
     }
 
     process {
-        try {
+        $result = Invoke-ErrorHandling -ScriptBlock {
             # Get configuration
             $config = Get-ApolloConfiguration
             
@@ -182,36 +203,40 @@ function Start-ApolloGameTracking {
                 Write-ApolloLog -Message "Process tracking completed successfully for: $GameName" -Level "INFO" -Category "ProcessTracking"
                 Write-ApolloLog -Message "Game-related processes identified: $($gameRelatedProcesses.Count)" -Level "INFO" -Category "ProcessTracking"
                 
-                # Return results if requested
-                if ($PassThru) {
-                    return [PSCustomObject]@{
-                        GameName = $GameName
-                        TrackingDuration = $TrackingDurationSeconds
-                        NewProcessCount = $newProcesses.Count
-                        GameRelatedProcessCount = $gameRelatedProcesses.Count
-                        NewProcesses = $newProcesses
-                        GameRelatedProcesses = $gameRelatedProcesses
-                        TrackingFile = $TrackingFile
-                        Success = $true
-                        Timestamp = Get-Date
-                    }
+                # Return tracking results
+                return [PSCustomObject]@{
+                    GameName = $GameName
+                    TrackingDuration = $TrackingDurationSeconds
+                    NewProcessCount = $newProcesses.Count
+                    GameRelatedProcessCount = $gameRelatedProcesses.Count
+                    NewProcesses = $newProcesses
+                    GameRelatedProcesses = $gameRelatedProcesses
+                    TrackingFile = $TrackingFile
+                    Success = $true
+                    Timestamp = Get-Date
                 }
             }
-        }
-        catch {
-            $errorMessage = "Failed to start Apollo game tracking: $($_.Exception.Message)"
-            Write-ApolloLog -Message $errorMessage -Level "ERROR" -Category "ProcessTracking"
-            
+        } -ErrorCategory 'ProcessManagement' -RetryCount 1 -SuppressErrors:$PassThru
+
+        # Handle the structured result
+        if ($result.Success) {
+            Write-Verbose "Process tracking completed successfully"
+            if ($PassThru) {
+                return $result.Result
+            }
+        } else {
+            $errorMessage = "Failed to start Apollo game tracking: $($result.Error)"
             if ($PassThru) {
                 return [PSCustomObject]@{
                     GameName = $GameName
                     Success = $false
-                    Error = $_.Exception.Message
+                    Error = $result.Error
+                    ErrorDetails = $result.ErrorDetails
                     Timestamp = Get-Date
                 }
+            } else {
+                Write-Error $errorMessage -ErrorAction Stop
             }
-            
-            Write-Error $errorMessage -ErrorAction Stop
         }
     }
 
