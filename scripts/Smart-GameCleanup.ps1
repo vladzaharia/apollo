@@ -151,27 +151,45 @@ try {
     # Execute the requested action
     switch ($Action) {
         "track" {
-            Write-ApolloLog -Message "Initiating process tracking phase" -Level "INFO" -Category "Orchestrator"
+            Write-ApolloLog -Message "Initiating background process tracking phase" -Level "INFO" -Category "Orchestrator"
 
-            if ($PSCmdlet.ShouldProcess($GameName, "Start process tracking")) {
-                $params = @{
+            if ($PSCmdlet.ShouldProcess($GameName, "Start background process tracking")) {
+                # Start tracking in background job to avoid blocking game launch
+                $scriptBlock = {
+                    param($GameName, $TrackingDurationSeconds, $Force, $ModulePath)
+
+                    # Import the module in the background job
+                    Import-Module $ModulePath -Force
+
+                    $params = @{
+                        GameName = $GameName
+                        PassThru = $true
+                    }
+
+                    if ($TrackingDurationSeconds -gt 0) { $params.TrackingDurationSeconds = $TrackingDurationSeconds }
+                    if ($Force) { $params.Force = $true }
+
+                    Start-ApolloGameTracking @params
+                }
+
+                $jobParams = @{
                     GameName = $GameName
-                    PassThru = $PassThru
+                    TrackingDurationSeconds = if ($TrackingDurationSeconds -gt 0) { $TrackingDurationSeconds } else { 0 }
+                    Force = $Force.IsPresent
+                    ModulePath = $ModulePath
                 }
 
-                if ($TrackingDurationSeconds -gt 0) { $params.TrackingDurationSeconds = $TrackingDurationSeconds }
-                if ($Force) { $params.Force = $true }
+                $job = Start-Job -ScriptBlock $scriptBlock -ArgumentList @($jobParams.GameName, $jobParams.TrackingDurationSeconds, $jobParams.Force, $jobParams.ModulePath)
 
-                $result = Start-ApolloGameTracking @params
-
-                if ($result -and -not $result.Success) {
-                    throw "Process tracking failed: $($result.Error)"
-                }
-
-                Write-ApolloLog -Message "Process tracking phase completed successfully" -Level "INFO" -Category "Orchestrator"
+                Write-ApolloLog -Message "Background process tracking started (Job ID: $($job.Id))" -Level "INFO" -Category "Orchestrator"
+                Write-ApolloLog -Message "Process tracking phase initiated successfully - game launch can proceed" -Level "INFO" -Category "Orchestrator"
 
                 if ($PassThru) {
-                    return $result
+                    return [PSCustomObject]@{
+                        Success = $true
+                        JobId = $job.Id
+                        Message = "Background tracking started"
+                    }
                 }
             }
         }
