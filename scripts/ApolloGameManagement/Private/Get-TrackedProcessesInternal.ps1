@@ -32,8 +32,46 @@ function Get-TrackedProcessesInternal {
 
     try {
         if (-not (Test-Path $TrackingFile)) {
-            Write-ApolloLogInternal -Message "No tracking file found at: $TrackingFile" -Level "DEBUG" -Category "ProcessCleanup"
-            return @()
+            Write-ApolloLogInternal -Message "No tracking file found, creating on-the-fly tracking data" -Level "INFO" -Category "ProcessCleanup"
+
+            # Create tracking data dynamically by detecting current processes
+            $currentProcesses = Get-IntelligentProcessesInternal -GameName $GameName
+
+            if ($currentProcesses -and $currentProcesses.Count -gt 0) {
+                # Create tracking directory if it doesn't exist
+                $trackingDir = Split-Path $TrackingFile -Parent
+                if (-not (Test-Path $trackingDir)) {
+                    New-Item -Path $trackingDir -ItemType Directory -Force | Out-Null
+                    Write-ApolloLogInternal -Message "Created tracking directory: $trackingDir" -Level "INFO" -Category "ProcessCleanup"
+                }
+
+                # Create tracking data structure
+                $trackingData = [PSCustomObject]@{
+                    GameName = $GameName
+                    Timestamp = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss.fffZ')
+                    ProcessSnapshot = @{
+                        BeforeGame = @()
+                        AfterGame = $currentProcesses | ForEach-Object {
+                            [PSCustomObject]@{
+                                ProcessName = $_
+                                ProcessId = (Get-Process -Name $_ -ErrorAction SilentlyContinue | Select-Object -First 1).Id
+                                StartTime = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss.fffZ')
+                            }
+                        }
+                    }
+                    TrackedProcesses = $currentProcesses
+                }
+
+                # Save the tracking data
+                $trackingData | ConvertTo-Json -Depth 10 | Set-Content $TrackingFile -Encoding UTF8
+                Write-ApolloLogInternal -Message "Created on-the-fly tracking file with $($currentProcesses.Count) processes" -Level "INFO" -Category "ProcessCleanup"
+
+                return $currentProcesses
+            }
+            else {
+                Write-ApolloLogInternal -Message "No processes detected for on-the-fly tracking" -Level "DEBUG" -Category "ProcessCleanup"
+                return @()
+            }
         }
         
         # Load tracking data
