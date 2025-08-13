@@ -1,0 +1,97 @@
+{
+  "version": "2.0.0",
+  "commands": {
+    "sync": {
+      "id": "sync",
+      "description": "Sync Apollo/Sunshine apps configuration with local apps.json",
+      "pluginName": "apollo-sync",
+      "pluginType": "core",
+      "aliases": [],
+      "examples": [
+        "apollo-sync sync",
+        "apollo-sync sync --dry-run",
+        "apollo-sync sync --verbose",
+        "apollo-sync sync --config ./custom-apps.json"
+      ],
+      "flags": {
+        "dry-run": {
+          "name": "dry-run",
+          "type": "boolean",
+          "char": "d",
+          "description": "Show what changes would be made without applying them",
+          "allowNo": false
+        },
+        "verbose": {
+          "name": "verbose",
+          "type": "boolean",
+          "char": "v",
+          "description": "Show detailed output including unchanged apps",
+          "allowNo": false
+        },
+        "config": {
+          "name": "config",
+          "type": "option",
+          "char": "c",
+          "description": "Path to apps.json configuration file"
+        }
+      },
+      "args": {}
+    },
+    "generate": {
+      "id": "generate",
+      "description": "Generate frontend configuration files (Daijisho/ES-DE) from Apollo apps",
+      "pluginName": "apollo-sync",
+      "pluginType": "core",
+      "aliases": [],
+      "examples": [
+        "apollo-sync generate",
+        "apollo-sync generate --dry-run",
+        "apollo-sync generate --frontend daijisho",
+        "apollo-sync generate --output ./frontend-configs",
+        "apollo-sync generate --no-artwork"
+      ],
+      "flags": {
+        "dry-run": {
+          "name": "dry-run",
+          "type": "boolean",
+          "char": "d",
+          "description": "Show what files would be generated without creating them",
+          "allowNo": false
+        },
+        "verbose": {
+          "name": "verbose",
+          "type": "boolean",
+          "char": "v",
+          "description": "Show detailed output including metadata fetching",
+          "allowNo": false
+        },
+        "config": {
+          "name": "config",
+          "type": "option",
+          "char": "c",
+          "description": "Path to apps.json configuration file"
+        },
+        "output": {
+          "name": "output",
+          "type": "option",
+          "char": "o",
+          "description": "Output directory for generated files"
+        },
+        "frontend": {
+          "name": "frontend",
+          "type": "option",
+          "char": "f",
+          "description": "Frontend to generate configs for",
+          "options": ["daijisho", "es-de", "both"]
+        },
+        "no-artwork": {
+          "name": "no-artwork",
+          "type": "boolean",
+          "description": "Skip artwork fetching from external APIs",
+          "allowNo": false
+        }
+      },
+      "args": {}
+    }
+  }
+}
