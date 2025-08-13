@@ -2,9 +2,19 @@ import pino from 'pino';
 import type { Config } from './config.js';
 
 /**
+ * Logging configuration interface
+ */
+export interface LoggingConfig {
+  logging: {
+    level: 'trace' | 'debug' | 'info' | 'warn' | 'error';
+    pretty: boolean;
+  };
+}
+
+/**
  * Create a logger instance based on configuration
  */
-export const createLogger = (config: Config): pino.Logger => {
+export const createLogger = (config: LoggingConfig): pino.Logger => {
   return pino({
     level: config.logging.level,
     transport: config.logging.pretty ? {

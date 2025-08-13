@@ -122,7 +122,7 @@ export const combine = <T extends readonly unknown[], E>(
     if (!result.success) {
       return result;
     }
-    (values as unknown[])[i] = result.data;
+    (values as any)[i] = result.data;
   }
   
   return Ok(values);

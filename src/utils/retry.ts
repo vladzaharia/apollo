@@ -1,4 +1,5 @@
-import { Result, Ok, Err } from './result.js';
+import type { Result } from './result.js';
+import { Ok, Err } from './result.js';
 import type { Logger } from './logger.js';
 
 export interface RetryOptions {

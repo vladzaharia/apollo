@@ -1,5 +1,6 @@
 import * as path from 'path';
-import { Result, Ok, Err } from '../../utils/result.js';
+import type { Result } from '../../utils/result.js';
+import { Ok, Err } from '../../utils/result.js';
 import type { Logger } from '../../utils/logger.js';
 import type { IFileService } from '../file/file.service.js';
 import type { GameMetadata, FrontendOptions, DaijishoPlatformConfig } from '../../models/game-metadata.js';
@@ -170,7 +171,7 @@ export class DaijishoService implements IDaijishoService {
     };
 
     if (options.verbose) {
-      this.logger.debug(`Art file data for ${game.name}:`, artData);
+      this.logger.debug(artData, `Art file data for ${game.name}:`);
     }
 
     if (!options.dryRun) {

@@ -1,8 +1,4 @@
-import { run } from '@oclif/core';
+import { execute } from '@oclif/core';
 
 // Run the CLI
-run(process.argv.slice(2))
-  .catch((error: Error) => {
-    console.error('Fatal error:', error.message);
-    process.exit(1);
-  });
+await execute({dir: import.meta.url});

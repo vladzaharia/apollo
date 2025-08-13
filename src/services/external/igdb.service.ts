@@ -1,5 +1,6 @@
-import igdb from 'igdb-api-node';
-import { Result, Ok, Err } from '../../utils/result.js';
+import * as igdb from 'igdb-api-node';
+import type { Result } from '../../utils/result.js';
+import { Ok, Err } from '../../utils/result.js';
 import { retryAsyncIf, shouldRetry } from '../../utils/retry.js';
 import type { Logger } from '../../utils/logger.js';
 import type { IgdbGame, IgdbApiResponse } from './igdb-types.js';
@@ -43,7 +44,7 @@ export interface IIgdbService {
  * IGDB service implementation
  */
 export class IgdbService implements IIgdbService {
-  private client: ReturnType<typeof igdb> | null = null;
+  private client: any | null = null;
 
   constructor(
     private clientId: string | undefined,
@@ -51,7 +52,7 @@ export class IgdbService implements IIgdbService {
     private logger: Logger
   ) {
     if (this.clientId && this.accessToken) {
-      this.client = igdb(this.clientId, this.accessToken);
+      this.client = (igdb as any).default ? (igdb as any).default(this.clientId, this.accessToken) : (igdb as any)(this.clientId, this.accessToken);
       this.logger.debug('IGDB client initialized');
     } else {
       this.logger.debug('IGDB credentials not provided - service disabled');

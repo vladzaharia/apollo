@@ -1,4 +1,5 @@
-import { Result, Ok, Err } from '../../utils/result.js';
+import type { Result } from '../../utils/result.js';
+import { Ok, Err } from '../../utils/result.js';
 import type { Logger } from '../../utils/logger.js';
 import type { IApolloClient } from './apollo-client.js';
 import type { 
@@ -142,12 +143,12 @@ export class AppSyncService implements IAppSyncService {
       }
     }
 
-    this.logger.info('App sync completed', {
+    this.logger.info({
       updated: result.updated,
       unchanged: result.unchanged,
       created: result.created,
       errors: result.errors.length,
-    });
+    }, 'App sync completed');
 
     return Ok(result);
   }

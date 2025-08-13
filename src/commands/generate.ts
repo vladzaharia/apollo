@@ -1,21 +1,25 @@
 import { Flags } from '@oclif/core';
-import { BaseCommand } from '../lib/base-command.js';
+import { Command } from '@oclif/core';
 import { container } from '../lib/container.js';
-import { hasExternalApiConfig } from '../utils/config.js';
+import { loadGenerateConfig, hasExternalApiConfig, type GenerateConfig } from '../utils/config.js';
+import { createLogger, type Logger } from '../utils/logger.js';
 import type { Result } from '../utils/result.js';
 import { Ok, Err } from '../utils/result.js';
 import type { GameMetadata } from '../models/game-metadata.js';
 import { createGameMetadata } from '../models/game-metadata.js';
-import { extractSteamAppId, extractLaunchCommand } from '../models/apollo-app.js';
+import { extractSteamAppId, extractLaunchCommand, type LocalConfig } from '../models/apollo-app.js';
 
 // Services
 import { FileService, type IFileService } from '../services/file/file.service.js';
+import { ApolloClient, type IApolloClient } from '../services/apollo/apollo-client.js';
 import { SteamGridDbService, type ISteamGridDbService } from '../services/external/steamgrid.service.js';
 import { IgdbService, type IIgdbService } from '../services/external/igdb.service.js';
 import { DaijishoService, type IDaijishoService } from '../services/frontend/daijisho.service.js';
 import { ESDeService, type IESDeService } from '../services/frontend/es-de.service.js';
 
-export default class Generate extends BaseCommand {
+export default class Generate extends Command {
+  protected appConfig!: GenerateConfig;
+  protected logger!: Logger;
   static override description = 'Generate frontend configuration files (Daijisho/ES-DE) from Apollo apps';
 
   static override examples = [
@@ -59,6 +63,33 @@ export default class Generate extends BaseCommand {
     }),
   };
 
+  override async init(): Promise<void> {
+    await super.init();
+
+    // Load generate-specific configuration
+    const configResult = loadGenerateConfig();
+    if (configResult.success) {
+      this.appConfig = configResult.data;
+      this.logger = createLogger(this.appConfig);
+
+      // Register core services in container
+      container.registerSingleton('config', () => this.appConfig);
+      container.registerSingleton('logger', () => this.logger);
+    } else {
+      // For generate command, we can work with minimal config if external APIs aren't needed
+      this.appConfig = {
+        logging: { level: 'info', pretty: true },
+        steamGridDb: { apiKey: undefined },
+        igdb: { clientId: undefined, accessToken: undefined },
+        apollo: undefined
+      };
+      this.logger = createLogger(this.appConfig);
+
+      container.registerSingleton('config', () => this.appConfig);
+      container.registerSingleton('logger', () => this.logger);
+    }
+  }
+
   public async run(): Promise<void> {
     const { flags } = await this.parse(Generate);
 
@@ -66,31 +97,23 @@ export default class Generate extends BaseCommand {
       // Register services
       this.registerServices();
 
-      // Load local configuration
-      const fileService = container.resolve<IFileService>('fileService');
-      const configResult = await fileService.loadLocalConfig(flags.config);
-      
-      if (!configResult.success) {
-        this.handleError(configResult.error, `Loading configuration from ${flags.config}`);
-        return;
-      }
-
-      const localConfig = configResult.data;
-      this.info(`Loaded ${localConfig.apps.length} apps from ${flags.config}`);
+      // Try to load apps from server first, fallback to local file
+      const appsConfig = await this.loadAppsConfig(flags.config);
+      this.info(`Loaded ${appsConfig.apps.length} apps from ${appsConfig.source}`);
 
       // Check external API availability
-      const apiConfig = hasExternalApiConfig(this.config);
+      const apiConfig = hasExternalApiConfig(this.appConfig);
       if (!flags['no-artwork']) {
         if (apiConfig.steamGridDb) {
           this.info('✓ SteamGridDB API configured');
         } else {
-          this.warn('SteamGridDB API not configured - artwork fetching disabled');
+          this.warning('SteamGridDB API not configured - artwork fetching disabled');
         }
 
         if (apiConfig.igdb) {
           this.info('✓ IGDB API configured');
         } else {
-          this.warn('IGDB API not configured - metadata fetching disabled');
+          this.warning('IGDB API not configured - metadata fetching disabled');
         }
       }
 
@@ -98,7 +121,7 @@ export default class Generate extends BaseCommand {
       const games: GameMetadata[] = [];
       let metadataErrors = 0;
 
-      for (const app of localConfig.apps) {
+      for (const app of appsConfig.apps) {
         try {
           const steamAppId = extractSteamAppId(app);
           const launchCommand = extractLaunchCommand(app);
@@ -113,7 +136,7 @@ export default class Generate extends BaseCommand {
             } else {
               metadataErrors++;
               if (flags.verbose) {
-                this.warn(`Failed to fetch metadata for ${app.name}: ${metadataResult.error.message}`);
+                this.warning(`Failed to fetch metadata for ${app.name}: ${metadataResult.error.message}`);
               }
             }
           }
@@ -121,12 +144,12 @@ export default class Generate extends BaseCommand {
           games.push(gameMetadata);
         } catch (error) {
           metadataErrors++;
-          this.warn(`Error processing ${app.name}: ${error instanceof Error ? error.message : String(error)}`);
+          this.warning(`Error processing ${app.name}: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
 
       if (metadataErrors > 0) {
-        this.warn(`${metadataErrors} games had metadata fetch errors`);
+        this.warning(`${metadataErrors} games had metadata fetch errors`);
       }
 
       // Generate frontend configs
@@ -148,19 +171,19 @@ export default class Generate extends BaseCommand {
           this.success('✓ Daijisho configuration generated');
         } else {
           generationErrors++;
-          this.warn(`✗ Daijisho generation failed: ${daijishoResult.error.message}`);
+          this.warning(`✗ Daijisho generation failed: ${daijishoResult.error.message}`);
         }
       }
 
       if (flags.frontend === 'es-de' || flags.frontend === 'both') {
         const esDeService = container.resolve<IESDeService>('esDeService');
         const esDeResult = await esDeService.generateConfig(games, frontendOptions);
-        
+
         if (esDeResult.success) {
           this.success('✓ ES-DE configuration generated');
         } else {
           generationErrors++;
-          this.warn(`✗ ES-DE generation failed: ${esDeResult.error.message}`);
+          this.warning(`✗ ES-DE generation failed: ${esDeResult.error.message}`);
         }
       }
 
@@ -257,14 +280,14 @@ export default class Generate extends BaseCommand {
     );
 
     // External API services
-    container.registerSingleton('steamGridService', () => 
-      new SteamGridDbService(this.config.steamGridDb.apiKey, this.logger)
+    container.registerSingleton('steamGridService', () =>
+      new SteamGridDbService(this.appConfig.steamGridDb.apiKey, this.logger)
     );
 
-    container.registerSingleton('igdbService', () => 
+    container.registerSingleton('igdbService', () =>
       new IgdbService(
-        this.config.igdb.clientId,
-        this.config.igdb.accessToken,
+        this.appConfig.igdb.clientId,
+        this.appConfig.igdb.accessToken,
         this.logger
       )
     );
@@ -283,5 +306,106 @@ export default class Generate extends BaseCommand {
         this.logger
       )
     );
+
+    // Apollo client (only if Apollo config is available)
+    if (this.appConfig.apollo?.endpoint) {
+      container.registerSingleton('apolloClient', () =>
+        new ApolloClient(this.appConfig as any, this.logger)
+      );
+    }
+  }
+
+  /**
+   * Load apps configuration from server first, fallback to local file
+   */
+  private async loadAppsConfig(localConfigPath: string): Promise<{ apps: any[], source: string }> {
+    // Try to load from Apollo server first if configured
+    if (this.appConfig.apollo?.endpoint && this.appConfig.apollo?.username && this.appConfig.apollo?.password) {
+      try {
+        const apolloClient = container.resolve<IApolloClient>('apolloClient');
+        const serverAppsResult = await apolloClient.fetchApps();
+
+        if (serverAppsResult.success) {
+          this.logger.info('Successfully loaded apps from Apollo server');
+          return {
+            apps: serverAppsResult.data,
+            source: 'Apollo server'
+          };
+        } else {
+          this.warning(`Failed to load apps from server: ${serverAppsResult.error.message}`);
+        }
+      } catch (error) {
+        this.warning(`Error connecting to Apollo server: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    // Fallback to local file
+    const fileService = container.resolve<IFileService>('fileService');
+    const configResult = await fileService.loadLocalConfig(localConfigPath);
+
+    if (!configResult.success) {
+      this.handleError(configResult.error, `Loading configuration from ${localConfigPath}`);
+    }
+
+    return {
+      apps: configResult.data.apps,
+      source: localConfigPath
+    };
+  }
+
+  /**
+   * Handle errors consistently
+   */
+  protected handleError(error: unknown, context = 'Command execution'): never {
+    if (error instanceof Error) {
+      this.logger.error({ error: error.message, stack: error.stack }, context);
+      this.error(error.message);
+    } else {
+      const message = String(error);
+      this.logger.error({ error: message }, context);
+      this.error(message);
+    }
+  }
+
+  /**
+   * Log and display success message
+   */
+  protected success(message: string): void {
+    this.logger.info(message);
+    this.log(`✓ ${message}`);
+  }
+
+  /**
+   * Log and display warning message
+   */
+  protected warning(message: string): void {
+    this.logger.warn(message);
+    this.log(`⚠ ${message}`);
+  }
+
+  /**
+   * Log and display info message
+   */
+  protected info(message: string): void {
+    this.logger.info(message);
+    this.log(`ℹ ${message}`);
+  }
+
+  /**
+   * Display verbose message only if verbose flag is set
+   */
+  protected verbose(message: string, isVerbose: boolean): void {
+    if (isVerbose) {
+      this.logger.debug(message);
+      this.log(`  ${message}`);
+    }
+  }
+
+  /**
+   * Display dry run message
+   */
+  protected dryRun(message: string): void {
+    this.logger.info(`[DRY RUN] ${message}`);
+    this.log(`🔍 [DRY RUN] ${message}`);
   }
 }

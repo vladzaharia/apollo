@@ -113,7 +113,7 @@ export const extractSteamAppId = (app: LocalApp | ServerApp): string | null => {
     const steamUri = app.detached.find(uri => uri.startsWith('steam://rungameid/'));
     if (steamUri) {
       const match = steamUri.match(/steam:\/\/rungameid\/(\d+)/);
-      return match ? match[1] : null;
+      return match ? match[1] ?? null : null;
     }
   }
   return null;
@@ -121,7 +121,7 @@ export const extractSteamAppId = (app: LocalApp | ServerApp): string | null => {
 
 export const extractLaunchCommand = (app: LocalApp | ServerApp): string => {
   if (app.detached && app.detached.length > 0) {
-    return app.detached[0];
+    return app.detached[0]!;
   } else if (app.cmd) {
     return app.cmd;
   }

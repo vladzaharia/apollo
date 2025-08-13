@@ -1,5 +1,6 @@
 import SGDB from 'steamgriddb';
-import { Result, Ok, Err, fromPromise } from '../../utils/result.js';
+import type { Result } from '../../utils/result.js';
+import { Ok, Err, fromPromise } from '../../utils/result.js';
 import { retryAsyncIf, shouldRetry } from '../../utils/retry.js';
 import type { Logger } from '../../utils/logger.js';
 
@@ -247,14 +248,14 @@ export class SteamGridDbService implements ISteamGridDbService {
    * Fetch grid artwork (covers)
    */
   private async fetchGrids(gameId: number): Promise<Result<string | undefined, SteamGridDbError>> {
-    const result = await fromPromise(this.client!.getGrids({ id: gameId }));
+    const result = await fromPromise(this.client!.getGrids({ id: gameId, type: 'game' }));
     if (!result.success) {
       return Err(new SteamGridDbError('Failed to fetch grids', 'GRIDS_FETCH_FAILED'));
     }
 
     const grids = result.data;
     if (grids && grids.length > 0) {
-      return Ok(grids[0].url);
+      return Ok(grids[0]!.url.toString());
     }
 
     return Ok(undefined);
@@ -264,14 +265,14 @@ export class SteamGridDbService implements ISteamGridDbService {
    * Fetch logo artwork
    */
   private async fetchLogos(gameId: number): Promise<Result<string | undefined, SteamGridDbError>> {
-    const result = await fromPromise(this.client!.getLogos({ id: gameId }));
+    const result = await fromPromise(this.client!.getLogos({ id: gameId, type: 'game' }));
     if (!result.success) {
       return Err(new SteamGridDbError('Failed to fetch logos', 'LOGOS_FETCH_FAILED'));
     }
 
     const logos = result.data;
     if (logos && logos.length > 0) {
-      return Ok(logos[0].url);
+      return Ok(logos[0]!.url.toString());
     }
 
     return Ok(undefined);
@@ -281,14 +282,14 @@ export class SteamGridDbService implements ISteamGridDbService {
    * Fetch icon artwork (tiles)
    */
   private async fetchIcons(gameId: number): Promise<Result<string | undefined, SteamGridDbError>> {
-    const result = await fromPromise(this.client!.getIcons({ id: gameId }));
+    const result = await fromPromise(this.client!.getIcons({ id: gameId, type: 'game' }));
     if (!result.success) {
       return Err(new SteamGridDbError('Failed to fetch icons', 'ICONS_FETCH_FAILED'));
     }
 
     const icons = result.data;
     if (icons && icons.length > 0) {
-      return Ok(icons[0].url);
+      return Ok(icons[0]!.url.toString());
     }
 
     return Ok(undefined);
@@ -298,14 +299,14 @@ export class SteamGridDbService implements ISteamGridDbService {
    * Fetch hero artwork (backgrounds)
    */
   private async fetchHeroes(gameId: number): Promise<Result<string | undefined, SteamGridDbError>> {
-    const result = await fromPromise(this.client!.getHeroes({ id: gameId }));
+    const result = await fromPromise(this.client!.getHeroes({ id: gameId, type: 'game' }));
     if (!result.success) {
       return Err(new SteamGridDbError('Failed to fetch heroes', 'HEROES_FETCH_FAILED'));
     }
 
     const heroes = result.data;
     if (heroes && heroes.length > 0) {
-      return Ok(heroes[0].url);
+      return Ok(heroes[0]!.url.toString());
     }
 
     return Ok(undefined);

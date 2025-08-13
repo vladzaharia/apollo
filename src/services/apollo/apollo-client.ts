@@ -1,6 +1,7 @@
 import axios, { type AxiosInstance } from 'axios';
 import * as https from 'https';
-import { Result, Ok, Err, fromPromise } from '../../utils/result.js';
+import type { Result } from '../../utils/result.js';
+import { Ok, Err, fromPromise } from '../../utils/result.js';
 import { retryAsyncIf, shouldRetry } from '../../utils/retry.js';
 import type { Config } from '../../utils/config.js';
 import type { Logger } from '../../utils/logger.js';
@@ -81,7 +82,7 @@ export class ApolloClient implements IApolloClient {
         if (response.status === 200) {
           const setCookieHeader = response.headers['set-cookie'];
           if (setCookieHeader && setCookieHeader.length > 0) {
-            this.sessionCookie = setCookieHeader[0].split(';')[0];
+            this.sessionCookie = setCookieHeader[0]!.split(';')[0]!;
             return;
           } else {
             throw new ApolloAuthError('Login successful but no session cookie received');

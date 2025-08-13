@@ -1,6 +1,7 @@
 import * as path from 'path';
 import * as xml2js from 'xml2js';
-import { Result, Ok, Err } from '../../utils/result.js';
+import type { Result } from '../../utils/result.js';
+import { Ok, Err } from '../../utils/result.js';
 import type { Logger } from '../../utils/logger.js';
 import type { IFileService } from '../file/file.service.js';
 import type { GameMetadata, FrontendOptions, ESDeGameEntry } from '../../models/game-metadata.js';

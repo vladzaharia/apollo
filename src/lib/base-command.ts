@@ -8,26 +8,26 @@ import { isErr } from '../utils/result.js';
  * Base command class with common functionality
  */
 export abstract class BaseCommand extends Command {
-  protected config!: Config;
+  protected appConfig!: Config;
   protected logger!: Logger;
 
   /**
    * Initialize the command with configuration and logging
    */
-  async init(): Promise<void> {
+  override async init(): Promise<void> {
     await super.init();
-    
+
     // Load configuration
     const configResult = loadConfig();
     if (isErr(configResult)) {
       this.error(`Configuration error: ${configResult.error.message}`);
     }
-    
-    this.config = configResult.data;
-    this.logger = createLogger(this.config);
-    
+
+    this.appConfig = configResult.data;
+    this.logger = createLogger(this.appConfig);
+
     // Register core services in container
-    container.registerSingleton('config', () => this.config);
+    container.registerSingleton('config', () => this.appConfig);
     container.registerSingleton('logger', () => this.logger);
   }
 
@@ -56,7 +56,7 @@ export abstract class BaseCommand extends Command {
   /**
    * Log and display warning message
    */
-  protected warn(message: string): void {
+  protected warning(message: string): void {
     this.logger.warn(message);
     this.log(`⚠ ${message}`);
   }
