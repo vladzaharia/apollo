@@ -65,6 +65,12 @@ jspm_packages/
 # Yarn Integrity file
 .yarn-integrity
 
+# Yarn v4 - files that should NOT be committed
+.yarn/install-state.gz
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+
 # dotenv environment variables file
 .env.test
 .env.production

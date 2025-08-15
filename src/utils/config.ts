@@ -34,7 +34,7 @@ const ExternalApiConfigSchema = z.object({
   }),
   igdb: z.object({
     clientId: z.string().optional(),
-    accessToken: z.string().optional(),
+    clientSecret: z.string().optional(),
   }),
 });
 
@@ -63,6 +63,7 @@ const GenerateConfigSchema = BaseConfigSchema.merge(ExternalApiConfigSchema).mer
   })
 );
 
+export type BaseConfig = z.infer<typeof BaseConfigSchema>;
 export type Config = z.infer<typeof ConfigSchema>;
 export type SyncConfig = z.infer<typeof SyncConfigSchema>;
 export type GenerateConfig = z.infer<typeof GenerateConfigSchema>;
@@ -83,7 +84,7 @@ export class ConfigValidationError extends Error {
 /**
  * Load base configuration object from environment
  */
-const loadBaseConfig = () => {
+const loadBaseConfig = (): Record<string, unknown> => {
   // Load .env file
   loadDotenv();
 
@@ -100,7 +101,7 @@ const loadBaseConfig = () => {
     },
     igdb: {
       clientId: process.env.IGDB_CLIENT_ID,
-      accessToken: process.env.IGDB_ACCESS_TOKEN,
+      clientSecret: process.env.IGDB_CLIENT_SECRET,
     },
     logging: {
       level: process.env.LOG_LEVEL,
@@ -209,5 +210,5 @@ export const hasExternalApiConfig = (config: Config | GenerateConfig): {
   igdb: boolean;
 } => ({
   steamGridDb: Boolean(config.steamGridDb.apiKey),
-  igdb: Boolean(config.igdb.clientId && config.igdb.accessToken),
+  igdb: Boolean(config.igdb.clientId && config.igdb.clientSecret),
 });

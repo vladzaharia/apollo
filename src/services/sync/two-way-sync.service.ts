@@ -81,8 +81,8 @@ export class TwoWaySyncService implements ITwoWaySyncService {
       if (!cachedStateResult.success) {
         this.logger.warn(`Failed to load cache: ${cachedStateResult.error.message}`);
       }
-      const cachedApps = cachedStateResult.success ? cachedStateResult.data?.apps || null : null;
-      this.logger.info(`Loaded ${cachedApps?.length || 0} cached apps`);
+      const cachedApps = cachedStateResult.success ? cachedStateResult.data?.apps ?? null : null;
+      this.logger.info(`Loaded ${cachedApps?.length ?? 0} cached apps`);
 
       // 4. Create sync plan using 3-way diff
       const plan = this.diffService.createSyncPlan(
@@ -293,20 +293,21 @@ export class TwoWaySyncService implements ITwoWaySyncService {
    * Convert ServerApp to LocalApp by removing server-specific fields
    */
   private serverAppToLocalApp(serverApp: ServerApp): LocalApp {
-    const {
-      uuid: _uuid,
-      'image-path': _imagePath,
-      'allow-client-commands': _allowClientCommands,
-      'per-client-app-identity': _perClientAppIdentity,
-      'scale-factor': _scaleFactor,
-      'state-cmd': _stateCmd,
-      'terminate-on-pause': _terminateOnPause,
-      'use-app-identity': _useAppIdentity,
-      'virtual-display': _virtualDisplay,
-      gamepad: _gamepad,
-      'exclude-global-state-cmd': _excludeGlobalStateCmd,
-      ...localFields
-    } = serverApp;
+    // Remove server-specific fields and keep only local app fields
+    const localFields = { ...serverApp } as Record<string, unknown>;
+
+    // Delete server-specific properties
+    delete localFields.uuid;
+    delete localFields['image-path'];
+    delete localFields['allow-client-commands'];
+    delete localFields['per-client-app-identity'];
+    delete localFields['scale-factor'];
+    delete localFields['state-cmd'];
+    delete localFields['terminate-on-pause'];
+    delete localFields['use-app-identity'];
+    delete localFields['virtual-display'];
+    delete localFields.gamepad;
+    delete localFields['exclude-global-state-cmd'];
 
     return localFields as LocalApp;
   }

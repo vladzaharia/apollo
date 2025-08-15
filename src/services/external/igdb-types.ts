@@ -45,7 +45,11 @@ export interface IgdbApiResponse<T = unknown> {
 }
 
 export interface IgdbClient {
-  fields(fields: string): IgdbClient;
+  fields(fields: string[] | string): IgdbClient;
   search(query: string): IgdbClient;
+  limit(limit: number): IgdbClient;
+  offset(offset: number): IgdbClient;
+  sort(field: string, direction?: 'asc' | 'desc'): IgdbClient;
+  where(condition: string): IgdbClient;
   request(endpoint: string): Promise<IgdbApiResponse<IgdbGame[]>>;
 }

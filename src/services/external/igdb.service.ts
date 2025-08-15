@@ -3,7 +3,7 @@ import type { Result } from '../../utils/result.js';
 import { Ok, Err } from '../../utils/result.js';
 import { retryAsyncIf, shouldRetry } from '../../utils/retry.js';
 import type { Logger } from '../../utils/logger.js';
-import type { IgdbGame, IgdbApiResponse } from './igdb-types.js';
+import type { IgdbGame, IgdbApiResponse, IgdbClient } from './igdb-types.js';
 
 /**
  * IGDB service errors
@@ -41,19 +41,29 @@ export interface IIgdbService {
 }
 
 /**
- * IGDB service implementation
+ * IGDB OAuth2 token response
+ */
+interface TwitchTokenResponse {
+  access_token: string;
+  expires_in: number;
+  token_type: string;
+}
+
+/**
+ * IGDB service implementation with automatic token management
  */
 export class IgdbService implements IIgdbService {
-  private client: any | null = null;
+  private client: IgdbClient | null = null;
+  private accessToken: string | null = null;
+  private tokenExpiresAt: number = 0;
 
   constructor(
     private clientId: string | undefined,
-    private accessToken: string | undefined,
+    private clientSecret: string | undefined,
     private logger: Logger
   ) {
-    if (this.clientId && this.accessToken) {
-      this.client = (igdb as any).default ? (igdb as any).default(this.clientId, this.accessToken) : (igdb as any)(this.clientId, this.accessToken);
-      this.logger.debug('IGDB client initialized');
+    if (this.clientId && this.clientSecret) {
+      this.logger.debug('IGDB service initialized with OAuth2 credentials');
     } else {
       this.logger.debug('IGDB credentials not provided - service disabled');
     }
@@ -63,16 +73,74 @@ export class IgdbService implements IIgdbService {
    * Check if the service is configured
    */
   isConfigured(): boolean {
-    return Boolean(this.client);
+    return Boolean(this.clientId && this.clientSecret);
+  }
+
+  /**
+   * Get a valid access token, refreshing if necessary
+   */
+  private async getValidAccessToken(): Promise<string> {
+    const now = Date.now();
+
+    // Check if we have a valid token that hasn't expired (with 5 minute buffer)
+    if (this.accessToken && this.tokenExpiresAt > now + 300000) {
+      return this.accessToken;
+    }
+
+    // Need to get a new token
+    this.logger.debug('Requesting new IGDB access token from Twitch');
+
+    const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: this.clientId!,
+        client_secret: this.clientSecret!,
+        grant_type: 'client_credentials',
+      }),
+    });
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      throw new IgdbError(
+        `Failed to get IGDB access token: ${tokenResponse.status} ${tokenResponse.statusText} - ${errorText}`,
+        'TOKEN_REQUEST_FAILED'
+      );
+    }
+
+    const tokenData: TwitchTokenResponse = await tokenResponse.json();
+
+    this.accessToken = tokenData.access_token;
+    this.tokenExpiresAt = now + (tokenData.expires_in * 1000);
+
+    this.logger.debug(`IGDB access token refreshed, expires in ${tokenData.expires_in} seconds`);
+
+    return this.accessToken;
+  }
+
+  /**
+   * Initialize or refresh the IGDB client with current token
+   */
+  private async ensureClient(): Promise<void> {
+    const token = await this.getValidAccessToken();
+
+    if (!this.client) {
+      // Handle both default export and named export patterns
+      const igdbFactory = (igdb as { default?: unknown }).default ?? igdb;
+      this.client = (igdbFactory as (clientId: string, accessToken: string) => IgdbClient)(this.clientId!, token);
+      this.logger.debug('IGDB client initialized with fresh token');
+    }
   }
 
   /**
    * Search for game metadata
    */
   async searchGameMetadata(gameName: string): Promise<Result<IgdbGameData, IgdbError>> {
-    if (!this.client) {
+    if (!this.isConfigured()) {
       return Err(new IgdbError(
-        'IGDB service not configured - client ID and access token required',
+        'IGDB service not configured - client ID and client secret required',
         'NOT_CONFIGURED'
       ));
     }
@@ -80,6 +148,9 @@ export class IgdbService implements IIgdbService {
     this.logger.debug(`Searching IGDB for: ${gameName}`);
 
     try {
+      // Ensure we have a valid client with fresh token
+      await this.ensureClient();
+
       const searchResult = await retryAsyncIf(
         async () => {
           const response = await this.client!
@@ -97,7 +168,7 @@ export class IgdbService implements IIgdbService {
             .search(gameName)
             .request('/games') as IgdbApiResponse<IgdbGame[]>;
 
-          return response.data;
+          return response?.data;
         },
         shouldRetry,
         { maxAttempts: 3 },

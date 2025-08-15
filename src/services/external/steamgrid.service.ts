@@ -17,7 +17,7 @@ export class SteamGridDbError extends Error {
 }
 
 /**
- * SteamGridDB artwork types
+ * SteamGridDB artwork types - simplified for Apollo's needs
  */
 export interface SteamGridDbArtwork {
   coverUrl?: string;
@@ -261,7 +261,8 @@ export class SteamGridDbService implements ISteamGridDbService {
     const grids = result.data;
     if (grids && grids.length > 0) {
       const firstGrid = grids[0];
-      return Ok(firstGrid?.url.toString());
+      // Handle URL object from official client
+      return Ok(firstGrid?.url instanceof URL ? firstGrid.url.toString() : String(firstGrid?.url));
     }
 
     return Ok(undefined);
@@ -281,7 +282,8 @@ export class SteamGridDbService implements ISteamGridDbService {
     const logos = result.data;
     if (logos && logos.length > 0) {
       const firstLogo = logos[0];
-      return Ok(firstLogo?.url.toString());
+      // Handle URL object from official client
+      return Ok(firstLogo?.url instanceof URL ? firstLogo.url.toString() : String(firstLogo?.url));
     }
 
     return Ok(undefined);
@@ -301,7 +303,8 @@ export class SteamGridDbService implements ISteamGridDbService {
     const icons = result.data;
     if (icons && icons.length > 0) {
       const firstIcon = icons[0];
-      return Ok(firstIcon?.url.toString());
+      // Handle URL object from official client
+      return Ok(firstIcon?.url instanceof URL ? firstIcon.url.toString() : String(firstIcon?.url));
     }
 
     return Ok(undefined);
@@ -321,7 +324,8 @@ export class SteamGridDbService implements ISteamGridDbService {
     const heroes = result.data;
     if (heroes && heroes.length > 0) {
       const firstHero = heroes[0];
-      return Ok(firstHero?.url.toString());
+      // Handle URL object from official client
+      return Ok(firstHero?.url instanceof URL ? firstHero.url.toString() : String(firstHero?.url));
     }
 
     return Ok(undefined);

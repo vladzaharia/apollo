@@ -84,7 +84,7 @@ export class CacheService implements ICacheService {
 
       const loadResult = await this.fileService.loadJsonFile<CachedServerState>(
         this.cacheFile,
-        this.validateCachedState
+        (data: unknown): CachedServerState => this.validateCachedState(data)
       );
 
       if (!loadResult.success) {
@@ -205,10 +205,17 @@ export class CacheService implements ICacheService {
       throw new Error('Invalid cached state: checksum is not a string');
     }
 
+    // Basic validation that apps array contains objects with name property
+    for (const app of state.apps) {
+      if (!app || typeof app !== 'object' || typeof (app as Record<string, unknown>).name !== 'string') {
+        throw new Error('Invalid cached state: apps array contains invalid app objects');
+      }
+    }
+
     return {
       apps: state.apps as ServerApp[],
-      timestamp: state.timestamp as number,
-      checksum: state.checksum as string
+      timestamp: state.timestamp,
+      checksum: state.checksum
     };
   }
 

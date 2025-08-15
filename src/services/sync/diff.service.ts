@@ -76,7 +76,7 @@ export class DiffService implements IDiffService {
     conflictResolution: ConflictResolution
   ): SyncPlan {
     this.logger.debug('Creating sync plan with 3-way diff');
-    this.logger.debug(`Local apps: ${localApps.length}, Server apps: ${serverApps.length}, Cached apps: ${cachedApps?.length || 0}`);
+    this.logger.debug(`Local apps: ${localApps.length}, Server apps: ${serverApps.length}, Cached apps: ${cachedApps?.length ?? 0}`);
 
     const plan: SyncPlan = {
       localOperations: [],
@@ -92,7 +92,7 @@ export class DiffService implements IDiffService {
     // Create maps for efficient lookup
     const localMap = new Map(localApps.map(app => [app.name, app]));
     const serverMap = new Map(serverApps.map(app => [app.name, app]));
-    const cachedMap = new Map(cachedApps?.map(app => [app.name, app]) || []);
+    const cachedMap = new Map(cachedApps?.map(app => [app.name, app]) ?? []);
 
     // Get all unique app names
     const allAppNames = new Set([
@@ -235,7 +235,7 @@ export class DiffService implements IDiffService {
 
       if (localChanged && serverChanged) {
         // Both changed - conflict
-        const conflicts = this.findConflicts(localApp as LocalApp, serverApp as ServerApp, cachedApp);
+        const conflicts = this.findConflicts(localApp, serverApp, cachedApp);
         return {
           appName,
           operation: DiffOperation.CONFLICT,

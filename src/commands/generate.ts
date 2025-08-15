@@ -77,7 +77,7 @@ export default class Generate extends Command {
       this.appConfig = {
         logging: { level: 'info', pretty: true },
         steamGridDb: { apiKey: undefined },
-        igdb: { clientId: undefined, accessToken: undefined },
+        igdb: { clientId: undefined, clientSecret: undefined },
         apollo: undefined
       };
       this.logger = createLogger(this.appConfig);
@@ -284,7 +284,7 @@ export default class Generate extends Command {
     container.registerSingleton('igdbService', () =>
       new IgdbService(
         this.appConfig.igdb.clientId,
-        this.appConfig.igdb.accessToken,
+        this.appConfig.igdb.clientSecret,
         this.logger
       )
     );
