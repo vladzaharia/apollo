@@ -14,6 +14,7 @@ import { IgdbService, type IIgdbService } from '../services/external/igdb.servic
 import { DaijishoService, type IDaijishoService } from '../services/frontend/daijisho.service.js';
 import { ESDeService, type IESDeService } from '../services/frontend/es-de.service.js';
 
+
 export default class Generate extends Command {
   protected appConfig!: GenerateConfig;
   protected logger!: Logger;
@@ -122,8 +123,9 @@ export default class Generate extends Command {
         try {
           const steamAppId = extractSteamAppId(app);
           const launchCommand = extractLaunchCommand(app);
-          
-          let gameMetadata = createGameMetadata(app.name, steamAppId ?? undefined, launchCommand);
+          const apolloAppUuid = 'uuid' in app ? (app.uuid as string) : undefined;
+
+          let gameMetadata = createGameMetadata(app.name, steamAppId ?? undefined, launchCommand, apolloAppUuid);
 
           // Fetch external metadata if not disabled
           if (!flags['no-artwork']) {
@@ -149,6 +151,8 @@ export default class Generate extends Command {
         this.warning(`${metadataErrors} games had metadata fetch errors`);
       }
 
+      // Media downloading will be handled per frontend to create self-contained folders
+
       // Generate frontend configs
       const frontendOptions = {
         outputDir: flags.output,
@@ -158,12 +162,24 @@ export default class Generate extends Command {
         frontend: flags.frontend as 'daijisho' | 'es-de' | 'both',
       };
 
+      // Get Apollo host info for art:// URL generation
+      let hostInfo = null;
+      if (this.appConfig.apollo?.endpoint) {
+        const apolloClient = container.resolve<IApolloClient>('apolloClient');
+        hostInfo = apolloClient.getHostInfo();
+
+        if (!hostInfo) {
+          this.warning('Apollo host UUID and name not configured - art:// URLs will not be generated');
+          this.warning('Set APOLLO_UUID and APOLLO_HOST_NAME environment variables for proper Artemis integration');
+        }
+      }
+
       let generationErrors = 0;
 
       if (flags.frontend === 'daijisho' || flags.frontend === 'both') {
         const daijishoService = container.resolve<IDaijishoService>('daijishoService');
-        const daijishoResult = await daijishoService.generateConfig(games, frontendOptions);
-        
+        const daijishoResult = await daijishoService.generateConfig(games, frontendOptions, hostInfo);
+
         if (daijishoResult.success) {
           this.success('✓ Daijisho configuration generated');
         } else {
@@ -174,7 +190,7 @@ export default class Generate extends Command {
 
       if (flags.frontend === 'es-de' || flags.frontend === 'both') {
         const esDeService = container.resolve<IESDeService>('esDeService');
-        const esDeResult = await esDeService.generateConfig(games, frontendOptions);
+        const esDeResult = await esDeService.generateConfig(games, frontendOptions, hostInfo);
 
         if (esDeResult.success) {
           this.success('✓ ES-DE configuration generated');
@@ -297,12 +313,14 @@ export default class Generate extends Command {
       )
     );
 
-    container.registerSingleton('esDeService', () => 
+    container.registerSingleton('esDeService', () =>
       new ESDeService(
         container.resolve<IFileService>('fileService'),
         this.logger
       )
     );
+
+
 
     // Apollo client (only if Apollo config is available)
     if (this.appConfig.apollo?.endpoint) {
@@ -365,44 +383,39 @@ export default class Generate extends Command {
   }
 
   /**
-   * Log and display success message
+   * Log success message (unified logging - transport handles display)
    */
   protected success(message: string): void {
     this.logger.info(message);
-    this.log(`✓ ${message}`);
   }
 
   /**
-   * Log and display warning message
+   * Log warning message (unified logging - transport handles display)
    */
   protected warning(message: string): void {
     this.logger.warn(message);
-    this.log(`⚠ ${message}`);
   }
 
   /**
-   * Log and display info message
+   * Log info message (unified logging - transport handles display)
    */
   protected info(message: string): void {
     this.logger.info(message);
-    this.log(`ℹ ${message}`);
   }
 
   /**
-   * Display verbose message only if verbose flag is set
+   * Log verbose message only if verbose flag is set (unified logging)
    */
   protected verbose(message: string, isVerbose: boolean): void {
     if (isVerbose) {
       this.logger.debug(message);
-      this.log(`  ${message}`);
     }
   }
 
   /**
-   * Display dry run message
+   * Log dry run message (unified logging - transport handles display)
    */
   protected dryRun(message: string): void {
     this.logger.info(`[DRY RUN] ${message}`);
-    this.log(`🔍 [DRY RUN] ${message}`);
   }
 }

@@ -230,9 +230,9 @@ export default class Sync extends Command {
 
     this.log('');
     this.log('📊 Two-Way Sync Summary:');
-    this.log(`  📥 Local changes: ${result.localChanges}`);
-    this.log(`  📤 Server changes: ${result.serverChanges}`);
-    this.log(`  ⚠️  Conflicts: ${result.conflicts}`);
+    this.log(`  📥 Changes applied to local: ${result.localChanges}`);
+    this.log(`  📤 Changes applied to server: ${result.serverChanges}`);
+    this.log(`  ⚠️  Conflicts requiring resolution: ${result.conflicts}`);
 
     if (result.errors.length > 0) {
       this.log(`  ❌ Errors: ${result.errors.length}`);
@@ -295,28 +295,25 @@ export default class Sync extends Command {
   }
 
   /**
-   * Log and display success message
+   * Log success message (unified logging - transport handles display)
    */
   protected success(message: string): void {
     this.logger.info(message);
-    this.log(`✓ ${message}`);
   }
 
   /**
-   * Log and display info message
+   * Log info message (unified logging - transport handles display)
    */
   protected info(message: string): void {
     this.logger.info(message);
-    this.log(`ℹ ${message}`);
   }
 
   /**
-   * Display verbose message only if verbose flag is set
+   * Log verbose message only if verbose flag is set (unified logging)
    */
   protected verbose(message: string, isVerbose: boolean): void {
     if (isVerbose) {
       this.logger.debug(message);
-      this.log(`  ${message}`);
     }
   }
 }

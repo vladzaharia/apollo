@@ -4,14 +4,14 @@
     "sync": {
       "id": "sync",
       "description": "Sync Apollo/Sunshine apps configuration with local apps.json",
-      "pluginName": "apollo-sync",
+      "pluginName": "apollo",
       "pluginType": "core",
       "aliases": [],
       "examples": [
-        "apollo-sync sync",
-        "apollo-sync sync --dry-run",
-        "apollo-sync sync --verbose",
-        "apollo-sync sync --config ./custom-apps.json"
+        "apollo sync",
+        "apollo sync --dry-run",
+        "apollo sync --verbose",
+        "apollo sync --config ./custom-apps.json"
       ],
       "flags": {
         "dry-run": {
@@ -40,15 +40,15 @@
     "generate": {
       "id": "generate",
       "description": "Generate frontend configuration files (Daijisho/ES-DE) from Apollo apps",
-      "pluginName": "apollo-sync",
+      "pluginName": "apollo",
       "pluginType": "core",
       "aliases": [],
       "examples": [
-        "apollo-sync generate",
-        "apollo-sync generate --dry-run",
-        "apollo-sync generate --frontend daijisho",
-        "apollo-sync generate --output ./frontend-configs",
-        "apollo-sync generate --no-artwork"
+        "apollo generate",
+        "apollo generate --dry-run",
+        "apollo generate --frontend daijisho",
+        "apollo generate --output ./frontend-configs",
+        "apollo generate --no-artwork"
       ],
       "flags": {
         "dry-run": {

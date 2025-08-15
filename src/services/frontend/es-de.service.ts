@@ -4,6 +4,9 @@ import { Ok, Err, type Result } from '../../utils/result.js';
 import type { Logger } from '../../utils/logger.js';
 import type { IFileService } from '../file/file.service.js';
 import { sanitizeFilename, type GameMetadata, type FrontendOptions, type ESDeGameEntry } from '../../models/game-metadata.js';
+import { generateArtLaunchUrl, type ApolloHostInfo } from '../../utils/art-url.js';
+import type { ServerApp } from '../../models/apollo-app.js';
+import { MediaDownloadService, type IMediaDownloadService } from '../media/media-download.service.js';
 
 /**
  * ES-DE service errors
@@ -22,7 +25,11 @@ export class ESDeError extends Error {
  * ES-DE service interface
  */
 export interface IESDeService {
-  generateConfig(games: GameMetadata[], options: FrontendOptions): Promise<Result<void, ESDeError>>;
+  generateConfig(
+    games: GameMetadata[],
+    options: FrontendOptions,
+    hostInfo?: ApolloHostInfo | null
+  ): Promise<Result<void, ESDeError>>;
 }
 
 /**
@@ -30,6 +37,7 @@ export interface IESDeService {
  */
 export class ESDeService implements IESDeService {
   private xmlBuilder: xml2js.Builder;
+  private mediaDownloadService: IMediaDownloadService;
 
   constructor(
     private fileService: IFileService,
@@ -40,14 +48,16 @@ export class ESDeService implements IESDeService {
       rootName: 'gameList',
       renderOpts: { pretty: true, indent: '  ' },
     });
+    this.mediaDownloadService = new MediaDownloadService(logger);
   }
 
   /**
    * Generate ES-DE configuration files
    */
   async generateConfig(
-    games: GameMetadata[], 
-    options: FrontendOptions
+    games: GameMetadata[],
+    options: FrontendOptions,
+    hostInfo?: ApolloHostInfo | null
   ): Promise<Result<void, ESDeError>> {
     this.logger.info(`Generating ES-DE config for ${games.length} games`);
 
@@ -76,7 +86,59 @@ export class ESDeService implements IESDeService {
         return Err(systemConfigResult.error);
       }
 
-      this.logger.info('ES-DE generation completed successfully');
+      // Download media and generate .art files for each game
+      let successCount = 0;
+      let errorCount = 0;
+      let mediaErrors = 0;
+
+      for (const game of games) {
+        let gameWithMedia = game;
+
+        // Download media if artwork is enabled
+        if (!options.noArtwork) {
+          const mediaResult = await this.mediaDownloadService.downloadGameMedia(
+            game,
+            esDeDir,
+            {
+              skipExisting: false,
+              verbose: options.verbose,
+              dryRun: options.dryRun,
+            }
+          );
+
+          if (mediaResult.success) {
+            gameWithMedia = mediaResult.data;
+          } else {
+            mediaErrors++;
+            if (options.verbose) {
+              this.logger.warn(`Failed to download media for ${game.name}: ${mediaResult.error.message}`);
+            }
+          }
+        }
+
+        const artResult = await this.generateArtFile(gameWithMedia, esDeDir, options, hostInfo);
+        if (artResult.success) {
+          successCount++;
+          if (options.verbose) {
+            this.logger.debug(`Generated .art file for: ${game.name}`);
+          }
+        } else {
+          errorCount++;
+          this.logger.warn(`Failed to generate .art file for ${game.name}: ${artResult.error.message}`);
+        }
+      }
+
+      // Generate README with import instructions
+      const readmeResult = await this.generateReadme(esDeDir, options);
+      if (!readmeResult.success) {
+        this.logger.warn(`Failed to generate README: ${readmeResult.error.message}`);
+      }
+
+      if (mediaErrors > 0) {
+        this.logger.warn(`${mediaErrors} games had media download errors`);
+      }
+
+      this.logger.info(`ES-DE generation completed: ${successCount} art files, ${errorCount} errors`);
       return Ok(undefined);
     } catch (error) {
       return Err(new ESDeError(
@@ -152,7 +214,7 @@ export class ESDeService implements IESDeService {
         fullname: 'Apollo/Sunshine',
         path: './apollo',
         extension: '.art',
-        command: 'apollo-sync generate --game "%ROM%"',
+        command: 'apollo generate --game "%ROM%"',
         platform: 'apollo',
         theme: 'apollo',
       },
@@ -219,5 +281,173 @@ export class ESDeService implements IESDeService {
     }
 
     return entry;
+  }
+
+  /**
+   * Generate .art file for a single game (similar to Daijisho)
+   */
+  private async generateArtFile(
+    game: GameMetadata,
+    outputDir: string,
+    options: FrontendOptions,
+    hostInfo?: ApolloHostInfo | null
+  ): Promise<Result<void, ESDeError>> {
+    const filename = sanitizeFilename(game.name);
+    const artFilePath = path.join(outputDir, `${filename}.art`);
+
+    // Generate launch command - prefer art:// URL if host info and app UUID are available
+    let launchCommand = game.launchCommand ?? '';
+    if (hostInfo && game.apolloAppUuid) {
+      // Create a mock ServerApp for URL generation
+      const mockApp: ServerApp = {
+        name: game.name,
+        uuid: game.apolloAppUuid,
+      } as ServerApp;
+
+      launchCommand = generateArtLaunchUrl(hostInfo, mockApp);
+    }
+
+    const artData = {
+      title: game.name,
+      description: game.description ?? '',
+      genre: game.genre ?? '',
+      releaseDate: game.releaseDate ?? '',
+      developer: game.developer ?? '',
+      publisher: game.publisher ?? '',
+      launchCommand,
+
+      // Artwork paths (local files take precedence over URLs)
+      coverArt: game.localCoverPath ?? game.coverArtUrl ?? '',
+      logo: game.localLogoPath ?? game.logoUrl ?? '',
+      marquee: game.localMarqueePath ?? game.marqueeUrl ?? '',
+      tile: game.localTilePath ?? game.tileUrl ?? '',
+      background: game.localBackgroundPath ?? game.backgroundUrl ?? '',
+      screenshots: game.localScreenshotPaths ?? game.screenshotUrls ?? [],
+    };
+
+    if (options.verbose) {
+      this.logger.debug(artData, `Art file data for ${game.name}:`);
+    }
+
+    if (!options.dryRun) {
+      const saveResult = await this.fileService.saveJsonFile(artFilePath, artData);
+      if (!saveResult.success) {
+        return Err(new ESDeError(
+          `Failed to save .art file: ${saveResult.error.message}`,
+          'SAVE_ART_ERROR'
+        ));
+      }
+    }
+
+    return Ok(undefined);
+  }
+
+  /**
+   * Generate README with import instructions
+   */
+  private async generateReadme(
+    outputDir: string,
+    options: FrontendOptions
+  ): Promise<Result<void, ESDeError>> {
+    const readmePath = path.join(outputDir, 'README.md');
+
+    const readmeContent = `# Apollo/Artemis System for ES-DE
+
+This folder contains a complete Apollo/Artemis system configuration for ES-DE (EmulationStation Desktop Edition).
+
+## Contents
+
+- \`es_systems.xml\` - System configuration file
+- \`gamelist.xml\` - Game list with metadata
+- \`*.art\` files - Individual game launcher files
+- \`media/\` - Game artwork and media files (covers, logos, backgrounds, etc.)
+
+## Installation Instructions
+
+### 1. Copy Files to ES-DE
+Copy this entire folder to your ES-DE ROMs directory, for example:
+\`\`\`
+~/.emulationstation/ROMs/apollo/
+\`\`\`
+
+### 2. Configure ES-DE System
+1. Copy \`es_systems.xml\` to your ES-DE configuration directory:
+   - Linux: \`~/.emulationstation/custom_systems/es_systems.xml\`
+   - Windows: \`%HOMEPATH%\\.emulationstation\\custom_systems\\es_systems.xml\`
+   - macOS: \`~/.emulationstation/custom_systems/es_systems.xml\`
+
+2. Restart ES-DE to load the new system configuration
+
+### 3. Verify Game Detection
+1. Launch ES-DE
+2. Navigate to the "Apollo/Sunshine" system
+3. Your games should appear with artwork and metadata
+
+### 4. Install Artemis Client (if using on Android/mobile)
+If you plan to use this with an Android device running ES-DE:
+- Install Artemis client: \`com.limelight.noir\`
+- Available from GitHub releases or F-Droid
+
+## System Configuration
+
+The Apollo system is configured with:
+- **Name**: apollo
+- **Full Name**: Apollo/Sunshine
+- **Extensions**: .art
+- **Command**: Custom launcher for Apollo games
+
+## File Structure
+
+\`\`\`
+apollo/
+├── README.md              # This file
+├── es_systems.xml          # System configuration
+├── gamelist.xml           # Game metadata
+├── *.art                  # Game launcher files
+└── media/                 # Game artwork
+    ├── GameName1/
+    │   ├── cover.png
+    │   ├── logo.png
+    │   └── background.png
+    └── GameName2/
+        ├── cover.png
+        └── logo.png
+\`\`\`
+
+## Usage
+
+Once configured, you can:
+- Browse games in the Apollo/Sunshine system
+- View game artwork and metadata
+- Launch games directly through Artemis
+- Use ES-DE's built-in features (favorites, collections, etc.)
+
+## Troubleshooting
+
+- **System not appearing**: Check that \`es_systems.xml\` is in the correct custom_systems directory
+- **Games not launching**: Ensure Artemis is installed and configured
+- **Missing artwork**: Verify the \`media/\` folder structure is intact
+- **Metadata not showing**: Check that \`gamelist.xml\` is in the same directory as the .art files
+
+For more information, visit: https://github.com/LizardByte/Sunshine
+`;
+
+    if (options.verbose) {
+      this.logger.debug(`Generating README: ${readmePath}`);
+    }
+
+    if (!options.dryRun) {
+      try {
+        const fs = await import('fs/promises');
+        await fs.writeFile(readmePath, readmeContent, 'utf8');
+      } catch (error) {
+        return Err(new ESDeError(
+          `Failed to save README: ${error instanceof Error ? error.message : String(error)}`,
+          'SAVE_README_ERROR'
+        ));
+      }
+    }
+
+    return Ok(undefined);
   }
 }

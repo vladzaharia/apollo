@@ -12,6 +12,9 @@ const GameMetadataSchema = z.object({
   publisher: z.string().optional(),
   steamAppId: z.string().optional(),
   launchCommand: z.string().optional(),
+
+  // Apollo app information
+  apolloAppUuid: z.string().optional(),
   
   // Artwork URLs
   coverArtUrl: z.string().optional(),
@@ -110,12 +113,14 @@ export const sanitizeFilename = (filename: string): string => {
 export const createGameMetadata = (
   name: string,
   steamAppId?: string,
-  launchCommand?: string
+  launchCommand?: string,
+  apolloAppUuid?: string
 ): GameMetadata => {
   return {
     name,
     steamAppId,
     launchCommand,
+    apolloAppUuid,
   };
 };
 

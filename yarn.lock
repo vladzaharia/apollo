@@ -1270,6 +1270,7 @@ __metadata:
     prettier: "npm:^3.3.0"
     rimraf: "npm:^6.0.0"
     steamgriddb: "npm:^2.2.0"
+    strip-ansi: "npm:^7.1.0"
     tsx: "npm:^4.0.0"
     typescript: "npm:^5.6.0"
     typescript-eslint: "npm:^8.39.1"

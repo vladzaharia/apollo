@@ -5,6 +5,7 @@ import { retryAsyncIf, shouldRetry } from '../../utils/retry.js';
 import type { Config, GenerateConfig, SyncConfig } from '../../utils/config.js';
 import type { Logger } from '../../utils/logger.js';
 import type { ServerApp, ServerAppsResponse, ApiPayload } from '../../models/apollo-app.js';
+import type { ApolloHostInfo } from '../../utils/art-url.js';
 
 /**
  * Apollo API errors
@@ -42,6 +43,7 @@ export interface IApolloClient {
   fetchApps(): Promise<Result<ServerApp[], ApolloApiError>>;
   updateApp(payload: ApiPayload): Promise<Result<void, ApolloApiError>>;
   testConnection(): Promise<Result<void, ApolloApiError>>;
+  getHostInfo(): ApolloHostInfo | null;
 }
 
 /**
@@ -280,5 +282,19 @@ export class ApolloClient implements IApolloClient {
       }
       return Err(new ApolloApiError(`Connection test failed: ${error.message}`));
     }
+  }
+
+  /**
+   * Get Apollo host information for art:// URL generation
+   */
+  getHostInfo(): ApolloHostInfo | null {
+    if (!this.apolloConfig.uuid || !this.apolloConfig.hostName) {
+      return null;
+    }
+
+    return {
+      uuid: this.apolloConfig.uuid,
+      name: this.apolloConfig.hostName,
+    };
   }
 }

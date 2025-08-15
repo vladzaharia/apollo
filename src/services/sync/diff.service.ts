@@ -122,7 +122,7 @@ export class DiffService implements IDiffService {
       }
     }
 
-    this.logger.debug(`Sync plan created: ${plan.summary.localChanges} local changes, ${plan.summary.serverChanges} server changes, ${plan.summary.conflicts} conflicts`);
+    this.logger.debug(`Sync plan created: ${plan.summary.localChanges} changes to apply to local, ${plan.summary.serverChanges} changes to apply to server, ${plan.summary.conflicts} conflicts`);
     return plan;
   }
 

@@ -53,13 +53,18 @@ export class TwoWaySyncService implements ITwoWaySyncService {
     this.logger.info('Starting two-way sync...');
 
     try {
-      // 1. Load local apps.json
+      // 1. Load local apps.json (or create empty if doesn't exist)
       const localConfigResult = await this.fileService.loadLocalConfig(options.configPath);
+      let localConfig: LocalConfig;
+
       if (!localConfigResult.success) {
-        return Err(new Error(`Failed to load local config: ${localConfigResult.error.message}`));
+        // If local config doesn't exist, start with empty state
+        this.logger.info(`Local config not found at ${options.configPath}, starting with empty state`);
+        localConfig = { apps: [] };
+      } else {
+        localConfig = localConfigResult.data;
+        this.logger.info(`Loaded ${localConfig.apps.length} apps from ${options.configPath}`);
       }
-      const localConfig = localConfigResult.data;
-      this.logger.info(`Loaded ${localConfig.apps.length} apps from ${options.configPath}`);
 
       // 2. Test connection and fetch server apps
       if (!options.dryRun) {
@@ -146,7 +151,7 @@ export class TwoWaySyncService implements ITwoWaySyncService {
         }
       }
 
-      this.logger.info(`Two-way sync completed: ${result.localChanges} local changes, ${result.serverChanges} server changes, ${result.conflicts} conflicts`);
+      this.logger.info(`Two-way sync completed: ${result.localChanges} changes applied to local, ${result.serverChanges} changes applied to server, ${result.conflicts} conflicts`);
       return Ok(result);
 
     } catch (error) {

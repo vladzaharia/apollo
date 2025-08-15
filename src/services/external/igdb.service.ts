@@ -1,6 +1,5 @@
 import * as igdb from 'igdb-api-node';
-import type { Result } from '../../utils/result.js';
-import { Ok, Err } from '../../utils/result.js';
+import { Ok, Err, type Result } from '../../utils/result.js';
 import { retryAsyncIf, shouldRetry } from '../../utils/retry.js';
 import type { Logger } from '../../utils/logger.js';
 import type { IgdbGame, IgdbApiResponse, IgdbClient } from './igdb-types.js';
@@ -55,7 +54,7 @@ interface TwitchTokenResponse {
 export class IgdbService implements IIgdbService {
   private client: IgdbClient | null = null;
   private accessToken: string | null = null;
-  private tokenExpiresAt: number = 0;
+  private tokenExpiresAt = 0;
 
   constructor(
     private clientId: string | undefined,
@@ -96,8 +95,8 @@ export class IgdbService implements IIgdbService {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
-        client_id: this.clientId!,
-        client_secret: this.clientSecret!,
+        client_id: this.clientId ?? '',
+        client_secret: this.clientSecret ?? '',
         grant_type: 'client_credentials',
       }),
     });
@@ -129,7 +128,7 @@ export class IgdbService implements IIgdbService {
     if (!this.client) {
       // Handle both default export and named export patterns
       const igdbFactory = (igdb as { default?: unknown }).default ?? igdb;
-      this.client = (igdbFactory as (clientId: string, accessToken: string) => IgdbClient)(this.clientId!, token);
+      this.client = (igdbFactory as (clientId: string, accessToken: string) => IgdbClient)(this.clientId ?? '', token);
       this.logger.debug('IGDB client initialized with fresh token');
     }
   }
@@ -153,7 +152,10 @@ export class IgdbService implements IIgdbService {
 
       const searchResult = await retryAsyncIf(
         async () => {
-          const response = await this.client!
+          if (!this.client) {
+            throw new Error('IGDB client not initialized');
+          }
+          const response = await this.client
             .fields([
               'name',
               'summary',
@@ -263,8 +265,10 @@ export class IgdbService implements IIgdbService {
    * Convert IGDB image URL to desired size
    */
   private convertImageUrl(url: string, size: string): string {
-    if (!url) return '';
-    
+    if (!url) {
+      return '';
+    }
+
     // IGDB URLs are in format: //images.igdb.com/igdb/image/upload/t_thumb/imageid.jpg
     // We need to replace t_thumb with the desired size
     return url.replace('t_thumb', `t_${size}`).replace('//', 'https://');

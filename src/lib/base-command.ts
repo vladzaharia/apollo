@@ -46,44 +46,39 @@ export abstract class BaseCommand extends Command {
   }
 
   /**
-   * Log and display success message
+   * Log success message (unified logging - transport handles display)
    */
   protected success(message: string): void {
     this.logger.info(message);
-    this.log(`✓ ${message}`);
   }
 
   /**
-   * Log and display warning message
+   * Log warning message (unified logging - transport handles display)
    */
   protected warning(message: string): void {
     this.logger.warn(message);
-    this.log(`⚠ ${message}`);
   }
 
   /**
-   * Log and display info message
+   * Log info message (unified logging - transport handles display)
    */
   protected info(message: string): void {
     this.logger.info(message);
-    this.log(`ℹ ${message}`);
   }
 
   /**
-   * Display verbose message only if verbose flag is set
+   * Log verbose message only if verbose flag is set (unified logging)
    */
   protected verbose(message: string, isVerbose: boolean): void {
     if (isVerbose) {
       this.logger.debug(message);
-      this.log(`  ${message}`);
     }
   }
 
   /**
-   * Display dry run message
+   * Log dry run message (unified logging - transport handles display)
    */
   protected dryRun(message: string): void {
     this.logger.info(`[DRY RUN] ${message}`);
-    this.log(`🔍 [DRY RUN] ${message}`);
   }
 }

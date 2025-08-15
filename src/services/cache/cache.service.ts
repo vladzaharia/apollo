@@ -49,8 +49,8 @@ export class CacheService implements ICacheService {
     private fileService: IFileService,
     private logger: Logger
   ) {
-    // Store cache in user's home directory under .apollo-sync
-    this.cacheDir = path.join(os.homedir(), '.apollo-sync');
+    // Store cache in user's home directory under .apollo-helpers
+    this.cacheDir = path.join(os.homedir(), '.local', 'apollo-helpers');
     this.cacheFile = path.join(this.cacheDir, 'server-state.json');
   }
 

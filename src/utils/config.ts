@@ -9,6 +9,14 @@ const BaseConfigSchema = z.object({
   logging: z.object({
     level: z.enum(['trace', 'debug', 'info', 'warn', 'error']).default('info'),
     pretty: z.boolean().default(true),
+    colorize: z.boolean().optional(),
+    timestamp: z.union([z.boolean(), z.string()]).optional(),
+    hideObject: z.boolean().optional(),
+    levelFirst: z.boolean().optional(),
+    transport: z.object({
+      target: z.string().optional(),
+      options: z.record(z.unknown()).optional(),
+    }).optional(),
   }),
 });
 
