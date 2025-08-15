@@ -874,7 +874,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@typescript-eslint/eslint-plugin@npm:^8.0.0":
+"@typescript-eslint/eslint-plugin@npm:8.39.1, @typescript-eslint/eslint-plugin@npm:^8.0.0":
   version: 8.39.1
   resolution: "@typescript-eslint/eslint-plugin@npm:8.39.1"
   dependencies:
@@ -895,7 +895,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@typescript-eslint/parser@npm:^8.0.0":
+"@typescript-eslint/parser@npm:8.39.1, @typescript-eslint/parser@npm:^8.0.0":
   version: 8.39.1
   resolution: "@typescript-eslint/parser@npm:8.39.1"
   dependencies:
@@ -1245,9 +1245,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"apollo-sync@workspace:.":
+"apollo-helpers@workspace:.":
   version: 0.0.0-use.local
-  resolution: "apollo-sync@workspace:."
+  resolution: "apollo-helpers@workspace:."
   dependencies:
     "@eslint/js": "npm:^9.0.0"
     "@oclif/core": "npm:^4.0.0"
@@ -1263,6 +1263,7 @@ __metadata:
     eslint: "npm:^9.0.0"
     husky: "npm:^9.0.0"
     igdb-api-node: "npm:^6.0.5"
+    igdb-api-types: "npm:^0.2.0"
     lint-staged: "npm:^15.0.0"
     pino: "npm:^9.0.0"
     pino-pretty: "npm:^13.1.1"
@@ -1271,11 +1272,12 @@ __metadata:
     steamgriddb: "npm:^2.2.0"
     tsx: "npm:^4.0.0"
     typescript: "npm:^5.6.0"
+    typescript-eslint: "npm:^8.39.1"
     vitest: "npm:^2.0.0"
     xml2js: "npm:^0.6.2"
     zod: "npm:^3.23.0"
   bin:
-    apollo-sync: bin/run.js
+    apollo-helpers: bin/run.js
   languageName: unknown
   linkType: soft
 
@@ -2521,6 +2523,13 @@ __metadata:
   dependencies:
     apicalypse: "npm:^1.0.4"
   checksum: 10c0/31e479f685cfd0ad88f72d8549702b6daef2e60f5a77e3b3e865a8a74f8bb263c6bac6a1f2b5334394148b8957fbef1162be1c5dc6ad3dda2808e2d1de014394
+  languageName: node
+  linkType: hard
+
+"igdb-api-types@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "igdb-api-types@npm:0.2.0"
+  checksum: 10c0/64e0c971b2e49e24e29b49a3cce9b59347fc2e76aad493c1d7d3ebf359a5b880eec90b2c95cd0e2770e4c6a74069098ecb7424a6f058f190218baf35179d1921
   languageName: node
   linkType: hard
 
@@ -4097,6 +4106,21 @@ __metadata:
   version: 0.21.3
   resolution: "type-fest@npm:0.21.3"
   checksum: 10c0/902bd57bfa30d51d4779b641c2bc403cdf1371fb9c91d3c058b0133694fcfdb817aef07a47f40faf79039eecbaa39ee9d3c532deff244f3a19ce68cea71a61e8
+  languageName: node
+  linkType: hard
+
+"typescript-eslint@npm:^8.39.1":
+  version: 8.39.1
+  resolution: "typescript-eslint@npm:8.39.1"
+  dependencies:
+    "@typescript-eslint/eslint-plugin": "npm:8.39.1"
+    "@typescript-eslint/parser": "npm:8.39.1"
+    "@typescript-eslint/typescript-estree": "npm:8.39.1"
+    "@typescript-eslint/utils": "npm:8.39.1"
+  peerDependencies:
+    eslint: ^8.57.0 || ^9.0.0
+    typescript: ">=4.8.4 <6.0.0"
+  checksum: 10c0/4070729621c20f8a9bad3df13fb8ac175609a57d046c155df785d474c2926d3e506f0bd5e762be7e2aacd03839c9c9a2015ad087086cee5838c486b9bf46b27b
   languageName: node
   linkType: hard
 

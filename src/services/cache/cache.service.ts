@@ -1,7 +1,6 @@
 import path from 'path';
 import os from 'os';
-import type { Result } from '../../utils/result.js';
-import { Ok, Err } from '../../utils/result.js';
+import { Ok, Err, type Result } from '../../utils/result.js';
 import type { Logger } from '../../utils/logger.js';
 import type { IFileService } from '../file/file.service.js';
 import type { ServerApp } from '../../models/apollo-app.js';

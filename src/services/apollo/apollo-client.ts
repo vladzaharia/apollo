@@ -1,9 +1,8 @@
 import axios, { type AxiosInstance } from 'axios';
 import * as https from 'https';
-import type { Result } from '../../utils/result.js';
-import { Ok, Err, fromPromise } from '../../utils/result.js';
+import { Ok, Err, fromPromise, type Result } from '../../utils/result.js';
 import { retryAsyncIf, shouldRetry } from '../../utils/retry.js';
-import type { Config } from '../../utils/config.js';
+import type { Config, GenerateConfig, SyncConfig } from '../../utils/config.js';
 import type { Logger } from '../../utils/logger.js';
 import type { ServerApp, ServerAppsResponse, ApiPayload } from '../../models/apollo-app.js';
 
@@ -51,13 +50,25 @@ export interface IApolloClient {
 export class ApolloClient implements IApolloClient {
   private client: AxiosInstance;
   private sessionCookie = '';
+  private apolloConfig: NonNullable<Config['apollo']>;
 
   constructor(
-    private config: Config,
+    private config: Config | SyncConfig | GenerateConfig,
     private logger: Logger
   ) {
+    if (!this.config.apollo) {
+      throw new ApolloApiError('Apollo configuration is required');
+    }
+
+    const { apollo } = this.config;
+    if (!apollo.endpoint || !apollo.username || !apollo.password) {
+      throw new ApolloApiError('Apollo endpoint, username, and password are required');
+    }
+
+    this.apolloConfig = apollo as NonNullable<Config['apollo']>;
+
     this.client = axios.create({
-      baseURL: this.config.apollo.endpoint,
+      baseURL: this.apolloConfig.endpoint,
       timeout: 10000,
       httpsAgent: new https.Agent({
         rejectUnauthorized: false, // Handle self-signed certificates
@@ -75,15 +86,20 @@ export class ApolloClient implements IApolloClient {
     const loginResult = await retryAsyncIf(
       async () => {
         const response = await this.client.post('/api/login', {
-          username: this.config.apollo.username,
-          password: this.config.apollo.password,
+          username: this.apolloConfig.username,
+          password: this.apolloConfig.password,
         });
 
         if (response.status === 200) {
           const setCookieHeader = response.headers['set-cookie'];
           if (setCookieHeader && setCookieHeader.length > 0) {
-            this.sessionCookie = setCookieHeader[0]!.split(';')[0]!;
-            return;
+            const firstCookie = setCookieHeader[0];
+            if (firstCookie) {
+              const cookieParts = firstCookie.split(';');
+              this.sessionCookie = cookieParts[0] ?? '';
+            } else {
+              throw new ApolloAuthError('Login successful but invalid session cookie received');
+            }
           } else {
             throw new ApolloAuthError('Login successful but no session cookie received');
           }
@@ -186,7 +202,7 @@ export class ApolloClient implements IApolloClient {
         });
 
         if (response.status === 200) {
-          return;
+          // Success - no action needed
         } else if (response.status === 401) {
           this.sessionCookie = '';
           throw new ApolloAuthError('Session expired');
@@ -248,11 +264,11 @@ export class ApolloClient implements IApolloClient {
         ));
       }
     } else {
-      const error = testResult.error;
+      const {error} = testResult;
       if (axios.isAxiosError(error)) {
         if (error.code === 'ECONNREFUSED') {
           return Err(new ApolloConnectionError(
-            `Connection refused: Is Apollo running on ${this.config.apollo.endpoint}?`,
+            `Connection refused: Is Apollo running on ${this.apolloConfig.endpoint}?`,
             'ECONNREFUSED'
           ));
         } else if (error.code === 'ETIMEDOUT') {

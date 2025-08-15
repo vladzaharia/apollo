@@ -1,15 +1,12 @@
-import type { Result } from '../../utils/result.js';
-import { Ok, Err } from '../../utils/result.js';
+import { Ok, Err, type Result } from '../../utils/result.js';
 import type { Logger } from '../../utils/logger.js';
 import type { IApolloClient } from './apollo-client.js';
-import type { 
-  LocalApp, 
-  ServerApp, 
-  ApiPayload, 
-  LocalConfig 
-} from '../../models/apollo-app.js';
 import {
-  normalizeAppName
+  normalizeAppName,
+  type LocalApp,
+  type ServerApp,
+  type ApiPayload,
+  type LocalConfig
 } from '../../models/apollo-app.js';
 
 /**
@@ -187,7 +184,7 @@ export class AppSyncService implements IAppSyncService {
     const longer = str1.length > str2.length ? str1 : str2;
     const shorter = str1.length > str2.length ? str2 : str1;
     
-    if (longer.length === 0) return 1.0;
+    if (longer.length === 0) {return 1.0;}
     
     const editDistance = this.levenshteinDistance(longer, shorter);
     return (longer.length - editDistance) / longer.length;
@@ -199,21 +196,38 @@ export class AppSyncService implements IAppSyncService {
   private levenshteinDistance(str1: string, str2: string): number {
     const matrix: number[][] = Array.from({ length: str2.length + 1 }, () => Array.from({ length: str1.length + 1 }, () => 0));
 
-    for (let i = 0; i <= str1.length; i++) matrix[0]![i] = i;
-    for (let j = 0; j <= str2.length; j++) matrix[j]![0] = j;
+    // Initialize first row and column
+    for (let i = 0; i <= str1.length; i++) {
+      const row = matrix[0];
+      if (row) {
+        row[i] = i;
+      }
+    }
+    for (let j = 0; j <= str2.length; j++) {
+      const row = matrix[j];
+      if (row) {
+        row[0] = j;
+      }
+    }
 
     for (let j = 1; j <= str2.length; j++) {
       for (let i = 1; i <= str1.length; i++) {
         const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
-        matrix[j]![i] = Math.min(
-          matrix[j]![i - 1]! + 1,     // deletion
-          matrix[j - 1]![i]! + 1,     // insertion
-          matrix[j - 1]![i - 1]! + indicator // substitution
-        );
+        const currentRow = matrix[j];
+        const prevRow = matrix[j - 1];
+
+        if (currentRow && prevRow) {
+          const deletion = (currentRow[i - 1] ?? 0) + 1;
+          const insertion = (prevRow[i] ?? 0) + 1;
+          const substitution = (prevRow[i - 1] ?? 0) + indicator;
+
+          currentRow[i] = Math.min(deletion, insertion, substitution);
+        }
       }
     }
 
-    return matrix[str2.length]![str1.length]!;
+    const lastRow = matrix[str2.length];
+    return lastRow?.[str1.length] ?? 0;
   }
 
   /**
@@ -233,7 +247,7 @@ export class AppSyncService implements IAppSyncService {
       const serverValue = serverApp[field];
 
       // Handle empty strings and undefined as equivalent
-      if (!localValue && !serverValue) continue;
+      if (!localValue && !serverValue) {continue;}
 
       if (!this.deepEqual(localValue, serverValue)) {
         differences.push(`${field}: ${JSON.stringify(serverValue)} -> ${JSON.stringify(localValue)}`);
@@ -247,14 +261,14 @@ export class AppSyncService implements IAppSyncService {
    * Deep equality check for objects and arrays
    */
   private deepEqual(a: unknown, b: unknown): boolean {
-    if (a === b) return true;
-    if (a == null || b == null) return a === b;
-    if (typeof a !== typeof b) return false;
+    if (a === b) {return true;}
+    if (a === null || b === null) {return a === b;}
+    if (typeof a !== typeof b) {return false;}
 
     if (Array.isArray(a) && Array.isArray(b)) {
-      if (a.length !== b.length) return false;
+      if (a.length !== b.length) {return false;}
       for (let i = 0; i < a.length; i++) {
-        if (!this.deepEqual(a[i], b[i])) return false;
+        if (!this.deepEqual(a[i], b[i])) {return false;}
       }
       return true;
     }
@@ -263,8 +277,8 @@ export class AppSyncService implements IAppSyncService {
       const keysA = Object.keys(a).sort();
       const keysB = Object.keys(b).sort();
 
-      if (keysA.length !== keysB.length) return false;
-      if (!this.deepEqual(keysA, keysB)) return false;
+      if (keysA.length !== keysB.length) {return false;}
+      if (!this.deepEqual(keysA, keysB)) {return false;}
 
       for (const key of keysA) {
         if (!this.deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])) {

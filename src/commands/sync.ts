@@ -1,5 +1,4 @@
-import { Flags } from '@oclif/core';
-import { Command } from '@oclif/core';
+import { Flags, Command } from '@oclif/core';
 import { container } from '../lib/container.js';
 import { loadSyncConfig, validateApolloConfig, type SyncConfig } from '../utils/config.js';
 import { createLogger, type Logger } from '../utils/logger.js';
@@ -7,11 +6,11 @@ import { isErr } from '../utils/result.js';
 
 // Services
 import { ApolloClient, type IApolloClient } from '../services/apollo/apollo-client.js';
-import { AppSyncService, type IAppSyncService } from '../services/apollo/app-sync.service.js';
+import { AppSyncService, type IAppSyncService, type AppSyncResult } from '../services/apollo/app-sync.service.js';
 import { FileService, type IFileService } from '../services/file/file.service.js';
 import { CacheService, type ICacheService } from '../services/cache/cache.service.js';
 import { DiffService, type IDiffService, ConflictResolution } from '../services/sync/diff.service.js';
-import { TwoWaySyncService, type ITwoWaySyncService } from '../services/sync/two-way-sync.service.js';
+import { TwoWaySyncService, type ITwoWaySyncService, type TwoWaySyncResult } from '../services/sync/two-way-sync.service.js';
 
 export default class Sync extends Command {
   protected appConfig!: SyncConfig;
@@ -168,7 +167,7 @@ export default class Sync extends Command {
 
     // Apollo client
     container.registerSingleton('apolloClient', () =>
-      new ApolloClient(this.appConfig as any, this.logger)
+      new ApolloClient(this.appConfig, this.logger)
     );
 
     // App sync service
@@ -222,7 +221,7 @@ export default class Sync extends Command {
   /**
    * Display two-way sync results
    */
-  private displayTwoWaySyncResults(result: any, flags: any): void {
+  private displayTwoWaySyncResults(result: TwoWaySyncResult, flags: Record<string, unknown>): void {
     if (flags['dry-run']) {
       this.info('[DRY RUN] Two-way sync completed - no changes were made');
     } else {
@@ -253,7 +252,7 @@ export default class Sync extends Command {
   /**
    * Display legacy sync results
    */
-  private displayLegacySyncResults(result: any, flags: any): void {
+  private displayLegacySyncResults(result: AppSyncResult, flags: Record<string, unknown>): void {
     if (flags['dry-run']) {
       this.info('[DRY RUN] Sync completed - no changes were made');
     } else {

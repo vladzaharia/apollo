@@ -1,11 +1,9 @@
 import * as path from 'path';
 import * as xml2js from 'xml2js';
-import type { Result } from '../../utils/result.js';
-import { Ok, Err } from '../../utils/result.js';
+import { Ok, Err, type Result } from '../../utils/result.js';
 import type { Logger } from '../../utils/logger.js';
 import type { IFileService } from '../file/file.service.js';
-import type { GameMetadata, FrontendOptions, ESDeGameEntry } from '../../models/game-metadata.js';
-import { sanitizeFilename } from '../../models/game-metadata.js';
+import { sanitizeFilename, type GameMetadata, type FrontendOptions, type ESDeGameEntry } from '../../models/game-metadata.js';
 
 /**
  * ES-DE service errors

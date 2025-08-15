@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { config as loadDotenv } from 'dotenv';
-import type { Result } from './result.js';
-import { Ok, Err } from './result.js';
+import { Ok, Err, type Result } from './result.js';
 
 /**
  * Base configuration schema
@@ -188,9 +187,9 @@ export const loadGenerateConfig = (): Result<GenerateConfig, ConfigValidationErr
 export const validateApolloConfig = (config: Config | SyncConfig): Result<void, ConfigValidationError> => {
   const missing: string[] = [];
 
-  if (!config.apollo.endpoint) missing.push('APOLLO_ENDPOINT');
-  if (!config.apollo.username) missing.push('APOLLO_USERNAME');
-  if (!config.apollo.password) missing.push('APOLLO_PASSWORD');
+  if (!config.apollo.endpoint) {missing.push('APOLLO_ENDPOINT');}
+  if (!config.apollo.username) {missing.push('APOLLO_USERNAME');}
+  if (!config.apollo.password) {missing.push('APOLLO_PASSWORD');}
 
   if (missing.length > 0) {
     return Err(new ConfigValidationError(

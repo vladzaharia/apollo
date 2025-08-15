@@ -1,10 +1,8 @@
 import * as path from 'path';
-import type { Result } from '../../utils/result.js';
-import { Ok, Err } from '../../utils/result.js';
+import { Ok, Err, type Result } from '../../utils/result.js';
 import type { Logger } from '../../utils/logger.js';
 import type { IFileService } from '../file/file.service.js';
-import type { GameMetadata, FrontendOptions, DaijishoPlatformConfig } from '../../models/game-metadata.js';
-import { sanitizeFilename } from '../../models/game-metadata.js';
+import { sanitizeFilename, type GameMetadata, type FrontendOptions, type DaijishoPlatformConfig } from '../../models/game-metadata.js';
 
 /**
  * Daijisho service errors

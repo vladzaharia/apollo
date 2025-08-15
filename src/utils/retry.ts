@@ -1,5 +1,4 @@
-import type { Result } from './result.js';
-import { Ok, Err } from './result.js';
+import { Ok, Err, type Result } from './result.js';
 import type { Logger } from './logger.js';
 
 export interface RetryOptions {
@@ -109,13 +108,13 @@ export const retryAsync = async <T>(
  */
 export const shouldRetry = (error: unknown): boolean => {
   if (error && typeof error === 'object' && 'code' in error) {
-    const code = (error as { code: string }).code;
+    const {code} = (error as { code: string });
     // Retry on network errors, rate limits, and server errors
     return ['ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'ENOTFOUND'].includes(code);
   }
 
   if (error && typeof error === 'object' && 'response' in error) {
-    const response = (error as { response: { status: number } }).response;
+    const {response} = (error as { response: { status: number } });
     // Retry on 5xx server errors and 429 rate limit
     return response.status >= 500 || response.status === 429;
   }

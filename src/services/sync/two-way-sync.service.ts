@@ -1,12 +1,10 @@
-import type { Result } from '../../utils/result.js';
-import { Ok, Err } from '../../utils/result.js';
+import { Ok, Err, type Result } from '../../utils/result.js';
 import type { Logger } from '../../utils/logger.js';
 import type { LocalApp, ServerApp, LocalConfig, ApiPayload } from '../../models/apollo-app.js';
 import type { IApolloClient } from '../apollo/apollo-client.js';
 import type { IFileService } from '../file/file.service.js';
 import type { ICacheService } from '../cache/cache.service.js';
-import type { IDiffService, SyncPlan, ConflictResolution } from './diff.service.js';
-import { DiffOperation } from './diff.service.js';
+import { DiffOperation, type IDiffService, type SyncPlan, type ConflictResolution, type AppDiff } from './diff.service.js';
 
 /**
  * Two-way sync options
@@ -160,7 +158,7 @@ export class TwoWaySyncService implements ITwoWaySyncService {
    * Apply operations to the server
    */
   private async applyServerOperations(
-    operations: any[],
+    operations: AppDiff[],
     serverApps: ServerApp[],
     options: TwoWaySyncOptions
   ): Promise<Result<number, Error>> {
@@ -226,7 +224,7 @@ export class TwoWaySyncService implements ITwoWaySyncService {
    * Apply operations to local apps.json
    */
   private async applyLocalOperations(
-    operations: any[],
+    operations: AppDiff[],
     localConfig: LocalConfig,
     options: TwoWaySyncOptions
   ): Promise<Result<number, Error>> {
@@ -248,11 +246,12 @@ export class TwoWaySyncService implements ITwoWaySyncService {
           }
         } else if (op.operation === DiffOperation.UPDATE && op.serverApp && op.localApp) {
           this.logger.info(`Updating local app: ${op.serverApp.name}`);
-          
-          const index = updatedApps.findIndex(app => app.name === op.localApp.name);
+
+          const { localApp } = op; // TypeScript assertion
+          const index = updatedApps.findIndex(app => app.name === localApp.name);
           if (index >= 0) {
             // Update with server changes
-            const updatedApp = this.mergeServerChangesToLocal(op.localApp, op.serverApp);
+            const updatedApp = this.mergeServerChangesToLocal(localApp, op.serverApp);
             updatedApps[index] = updatedApp;
             changesApplied++;
             
@@ -262,8 +261,9 @@ export class TwoWaySyncService implements ITwoWaySyncService {
           }
         } else if (op.operation === DiffOperation.DELETE && op.localApp) {
           this.logger.info(`Removing app from local: ${op.localApp.name}`);
-          
-          const index = updatedApps.findIndex(app => app.name === op.localApp.name);
+
+          const { localApp } = op; // TypeScript assertion
+          const index = updatedApps.findIndex(app => app.name === localApp.name);
           if (index >= 0) {
             updatedApps.splice(index, 1);
             changesApplied++;
@@ -294,17 +294,17 @@ export class TwoWaySyncService implements ITwoWaySyncService {
    */
   private serverAppToLocalApp(serverApp: ServerApp): LocalApp {
     const {
-      uuid,
-      'image-path': imagePath,
-      'allow-client-commands': allowClientCommands,
-      'per-client-app-identity': perClientAppIdentity,
-      'scale-factor': scaleFactor,
-      'state-cmd': stateCmd,
-      'terminate-on-pause': terminateOnPause,
-      'use-app-identity': useAppIdentity,
-      'virtual-display': virtualDisplay,
-      gamepad,
-      'exclude-global-state-cmd': excludeGlobalStateCmd,
+      uuid: _uuid,
+      'image-path': _imagePath,
+      'allow-client-commands': _allowClientCommands,
+      'per-client-app-identity': _perClientAppIdentity,
+      'scale-factor': _scaleFactor,
+      'state-cmd': _stateCmd,
+      'terminate-on-pause': _terminateOnPause,
+      'use-app-identity': _useAppIdentity,
+      'virtual-display': _virtualDisplay,
+      gamepad: _gamepad,
+      'exclude-global-state-cmd': _excludeGlobalStateCmd,
       ...localFields
     } = serverApp;
 
@@ -321,7 +321,7 @@ export class TwoWaySyncService implements ITwoWaySyncService {
 
     for (const field of syncFields) {
       if (field in serverApp) {
-        (merged as any)[field] = (serverApp as any)[field];
+        (merged as Record<string, unknown>)[field] = (serverApp as Record<string, unknown>)[field];
       }
     }
 

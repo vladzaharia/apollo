@@ -1,5 +1,5 @@
 {
-  "name": "apollo-sync",
+  "name": "apollo-helpers",
   "version": "2.0.0",
   "description": "Apollo/Sunshine app configuration sync tool - modernized for 2025",
   "type": "module",
@@ -48,11 +48,13 @@
     "@vitest/ui": "^2.0.0",
     "eslint": "^9.0.0",
     "husky": "^9.0.0",
+    "igdb-api-types": "^0.2.0",
     "lint-staged": "^15.0.0",
     "prettier": "^3.3.0",
     "rimraf": "^6.0.0",
     "tsx": "^4.0.0",
     "typescript": "^5.6.0",
+    "typescript-eslint": "^8.39.1",
     "vitest": "^2.0.0"
   },
   "engines": {
@@ -60,8 +62,8 @@
   },
   "packageManager": "yarn@4.9.2",
   "oclif": {
-    "bin": "apollo-sync",
-    "dirname": "apollo-sync",
+    "bin": "apollo-helpers",
+    "dirname": "apollo-helpers",
     "commands": "./dist/commands",
     "topicSeparator": " "
   }

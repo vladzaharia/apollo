@@ -1,10 +1,8 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import type { Result } from '../../utils/result.js';
-import { Ok, Err, fromPromise } from '../../utils/result.js';
+import { Ok, Err, fromPromise, type Result } from '../../utils/result.js';
 import type { Logger } from '../../utils/logger.js';
-import type { LocalConfig } from '../../models/apollo-app.js';
-import { validateLocalConfig } from '../../models/apollo-app.js';
+import { validateLocalConfig, type LocalConfig } from '../../models/apollo-app.js';
 
 /**
  * File service errors

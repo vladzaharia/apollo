@@ -1,13 +1,10 @@
-import { Flags } from '@oclif/core';
-import { Command } from '@oclif/core';
+import { Flags, Command } from '@oclif/core';
 import { container } from '../lib/container.js';
 import { loadGenerateConfig, hasExternalApiConfig, type GenerateConfig } from '../utils/config.js';
 import { createLogger, type Logger } from '../utils/logger.js';
-import type { Result } from '../utils/result.js';
-import { Ok, Err } from '../utils/result.js';
-import type { GameMetadata } from '../models/game-metadata.js';
-import { createGameMetadata } from '../models/game-metadata.js';
-import { extractSteamAppId, extractLaunchCommand, type LocalConfig } from '../models/apollo-app.js';
+import { Ok, Err, type Result } from '../utils/result.js';
+import { createGameMetadata, type GameMetadata } from '../models/game-metadata.js';
+import { extractSteamAppId, extractLaunchCommand, type LocalApp } from '../models/apollo-app.js';
 
 // Services
 import { FileService, type IFileService } from '../services/file/file.service.js';
@@ -310,7 +307,7 @@ export default class Generate extends Command {
     // Apollo client (only if Apollo config is available)
     if (this.appConfig.apollo?.endpoint) {
       container.registerSingleton('apolloClient', () =>
-        new ApolloClient(this.appConfig as any, this.logger)
+        new ApolloClient(this.appConfig, this.logger)
       );
     }
   }
@@ -318,7 +315,7 @@ export default class Generate extends Command {
   /**
    * Load apps configuration from server first, fallback to local file
    */
-  private async loadAppsConfig(localConfigPath: string): Promise<{ apps: any[], source: string }> {
+  private async loadAppsConfig(localConfigPath: string): Promise<{ apps: LocalApp[], source: string }> {
     // Try to load from Apollo server first if configured
     if (this.appConfig.apollo?.endpoint && this.appConfig.apollo?.username && this.appConfig.apollo?.password) {
       try {

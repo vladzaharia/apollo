@@ -121,7 +121,8 @@ export const extractSteamAppId = (app: LocalApp | ServerApp): string | null => {
 
 export const extractLaunchCommand = (app: LocalApp | ServerApp): string => {
   if (app.detached && app.detached.length > 0) {
-    return app.detached[0]!;
+    const firstCommand = app.detached[0];
+    return firstCommand ?? '';
   } else if (app.cmd) {
     return app.cmd;
   }

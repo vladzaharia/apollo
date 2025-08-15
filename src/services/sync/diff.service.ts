@@ -235,7 +235,7 @@ export class DiffService implements IDiffService {
 
       if (localChanged && serverChanged) {
         // Both changed - conflict
-        const conflicts = this.findConflicts(localApp!, serverApp!, cachedApp);
+        const conflicts = this.findConflicts(localApp as LocalApp, serverApp as ServerApp, cachedApp);
         return {
           appName,
           operation: DiffOperation.CONFLICT,
@@ -263,15 +263,15 @@ export class DiffService implements IDiffService {
    * Check if an app has changed compared to cached version
    */
   private hasAppChanged(current?: LocalApp | ServerApp, cached?: ServerApp): boolean {
-    if (!current && !cached) return false;
-    if (!current || !cached) return true;
+    if (!current && !cached) {return false;}
+    if (!current || !cached) {return true;}
 
     // Compare sync fields only
     const syncFields = ['cmd', 'detached', 'elevated', 'auto-detach', 'wait-all', 'exit-timeout', 'exclude-global-prep-cmd', 'output', 'prep-cmd'];
     
     for (const field of syncFields) {
-      const currentValue = (current as any)[field];
-      const cachedValue = (cached as any)[field];
+      const currentValue = (current as Record<string, unknown>)[field];
+      const cachedValue = (cached as Record<string, unknown>)[field];
       
       if (!this.deepEqual(currentValue, cachedValue)) {
         return true;
@@ -289,9 +289,9 @@ export class DiffService implements IDiffService {
     const syncFields = ['cmd', 'detached', 'elevated', 'auto-detach', 'wait-all', 'exit-timeout', 'exclude-global-prep-cmd', 'output', 'prep-cmd'];
 
     for (const field of syncFields) {
-      const localValue = (localApp as any)[field];
-      const serverValue = (serverApp as any)[field];
-      const cachedValue = cachedApp ? (cachedApp as any)[field] : undefined;
+      const localValue = (localApp as Record<string, unknown>)[field];
+      const serverValue = (serverApp as Record<string, unknown>)[field];
+      const cachedValue = cachedApp ? (cachedApp as Record<string, unknown>)[field] : undefined;
 
       // Check if both local and server changed this field differently
       const localChanged = !this.deepEqual(localValue, cachedValue);
@@ -379,25 +379,27 @@ export class DiffService implements IDiffService {
   /**
    * Deep equality check for values
    */
-  private deepEqual(a: any, b: any): boolean {
-    if (a === b) return true;
-    if (a == null || b == null) return a === b;
-    if (typeof a !== typeof b) return false;
+  private deepEqual(a: unknown, b: unknown): boolean {
+    if (a === b) {return true;}
+    if (a === null || b === null) {return a === b;}
+    if (typeof a !== typeof b) {return false;}
     
     if (Array.isArray(a) && Array.isArray(b)) {
-      if (a.length !== b.length) return false;
+      if (a.length !== b.length) {return false;}
       for (let i = 0; i < a.length; i++) {
-        if (!this.deepEqual(a[i], b[i])) return false;
+        if (!this.deepEqual(a[i], b[i])) {return false;}
       }
       return true;
     }
     
-    if (typeof a === 'object') {
-      const keysA = Object.keys(a);
-      const keysB = Object.keys(b);
-      if (keysA.length !== keysB.length) return false;
+    if (typeof a === 'object' && a !== null && typeof b === 'object' && b !== null) {
+      const objA = a as Record<string, unknown>;
+      const objB = b as Record<string, unknown>;
+      const keysA = Object.keys(objA);
+      const keysB = Object.keys(objB);
+      if (keysA.length !== keysB.length) {return false;}
       for (const key of keysA) {
-        if (!keysB.includes(key) || !this.deepEqual(a[key], b[key])) return false;
+        if (!keysB.includes(key) || !this.deepEqual(objA[key], objB[key])) {return false;}
       }
       return true;
     }
