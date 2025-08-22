@@ -160,24 +160,31 @@ export class DaijishoService implements IDaijishoService {
    */
   private createPlatformConfig(): DaijishoPlatformConfig {
     return {
-      databaseVersion: 1,
+      databaseVersion: 14,
       revisionNumber: 1,
       platform: {
         name: 'Apollo',
         uniqueId: 'apollo-sunshine',
         shortname: 'apollo',
-        acceptedFilenameRegex: '.*\\.art',
-        screenAspectRatioId: 0,
+        description: null,
+        acceptedFilenameRegex: '^(.*)\\.(?:art)$',
+        scraperSourceList: [],
         boxArtAspectRatioId: 0,
+        useCustomBoxArtAspectRatio: false,
+        customBoxArtAspectRatio: null,
+        screenAspectRatioId: 0,
+        useCustomScreenAspectRatio: false,
+        customScreenAspectRatio: null,
+        retroAchievementsAlias: null,
         extra: '',
       },
       playerList: [
         {
           name: 'Apollo Launcher',
-          uniqueId: 'apollo-launcher',
-          description: 'Launch games through Apollo/Sunshine',
-          acceptedFilenameRegex: '.*\\.art',
-          amStartArguments: '',
+          uniqueId: 'apollo.artemis',
+          description: 'Launch games through Apollo/Sunshine via Artemis',
+          acceptedFilenameRegex: '^(.*)\\.(?:art)$',
+          amStartArguments: '-n com.limelight.noir/.MainActivity\\n --es launchMode art\\n --es artFile {file.path}',
           killPackageProcesses: false,
           killPackageProcessesWarning: false,
           extra: '',

@@ -56,11 +56,13 @@ export class TwoWaySyncService implements ITwoWaySyncService {
       // 1. Load local apps.json (or create empty if doesn't exist)
       const localConfigResult = await this.fileService.loadLocalConfig(options.configPath);
       let localConfig: LocalConfig;
+      let isFirstTimeSync = false;
 
       if (!localConfigResult.success) {
-        // If local config doesn't exist, start with empty state
+        // If local config doesn't exist, this is a first-time sync
         this.logger.info(`Local config not found at ${options.configPath}, starting with empty state`);
         localConfig = { apps: [] };
+        isFirstTimeSync = true;
       } else {
         localConfig = localConfigResult.data;
         this.logger.info(`Loaded ${localConfig.apps.length} apps from ${options.configPath}`);
@@ -74,12 +76,19 @@ export class TwoWaySyncService implements ITwoWaySyncService {
         }
       }
 
+      // 2. Fetch server apps (with fallback to cache if server unavailable)
       const serverAppsResult = await this.apolloClient.fetchApps();
-      if (!serverAppsResult.success) {
-        return Err(new Error(`Failed to fetch server apps: ${serverAppsResult.error.message}`));
+      let serverApps: ServerApp[] = [];
+      let serverAvailable = false;
+
+      if (serverAppsResult.success) {
+        serverApps = serverAppsResult.data;
+        serverAvailable = true;
+        this.logger.info(`Fetched ${serverApps.length} apps from server`);
+      } else {
+        this.logger.warn(`Failed to fetch server apps: ${serverAppsResult.error.message}`);
+        this.logger.info('Server unavailable, will use cached state for sync');
       }
-      const serverApps = serverAppsResult.data;
-      this.logger.info(`Fetched ${serverApps.length} apps from server`);
 
       // 3. Load cached server state
       const cachedStateResult = await this.cacheService.getCachedServerState();
@@ -89,11 +98,21 @@ export class TwoWaySyncService implements ITwoWaySyncService {
       const cachedApps = cachedStateResult.success ? cachedStateResult.data?.apps ?? null : null;
       this.logger.info(`Loaded ${cachedApps?.length ?? 0} cached apps`);
 
+      // If server is unavailable but we have cached apps, use cached as server state
+      if (!serverAvailable && cachedApps && cachedApps.length > 0) {
+        serverApps = cachedApps;
+        this.logger.info(`Using ${serverApps.length} cached apps as server state (server unavailable)`);
+      } else if (!serverAvailable && (!cachedApps || cachedApps.length === 0)) {
+        return Err(new Error('Server unavailable and no cached state found. Cannot perform sync.'));
+      }
+
       // 4. Create sync plan using 3-way diff
+      // For first-time sync or when server is unavailable, pass null as cachedApps to treat all server apps as new
+      const effectiveCachedApps = (isFirstTimeSync || !serverAvailable) ? null : cachedApps;
       const plan = this.diffService.createSyncPlan(
         localConfig.apps,
         serverApps,
-        cachedApps,
+        effectiveCachedApps,
         options.conflictResolution
       );
 
@@ -143,8 +162,8 @@ export class TwoWaySyncService implements ITwoWaySyncService {
         }
       }
 
-      // 8. Update cache with new server state (only if no errors and not dry run)
-      if (result.errors.length === 0 && !options.dryRun) {
+      // 8. Update cache with new server state (only if we fetched fresh data, no errors, and not dry run)
+      if (serverAvailable && result.errors.length === 0 && !options.dryRun) {
         const cacheResult = await this.cacheService.setCachedServerState(serverApps);
         if (!cacheResult.success) {
           this.logger.warn(`Failed to update cache: ${cacheResult.error.message}`);
