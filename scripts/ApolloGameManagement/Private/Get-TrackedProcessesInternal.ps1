@@ -326,7 +326,7 @@ function Stop-ProcessesForce {
                 foreach ($child in $childProcesses) {
                     try {
                         Write-ApolloLogInternal -Message "Killing child process PID $($child.ProcessId): $($child.Name)" -Level "DEBUG" -Category "ProcessCleanup"
-                        Stop-Process -Id $child.ProcessId -Force -ErrorAction SilentlyContinue
+                        Stop-Process -Id $child.ProcessId -Force -Confirm:$false -ErrorAction SilentlyContinue
                     }
                     catch {
                         Write-ApolloLogInternal -Message "Failed to kill child process $($child.ProcessId): $($_.Exception.Message)" -Level "WARN" -Category "ProcessCleanup"
@@ -334,7 +334,7 @@ function Stop-ProcessesForce {
                 }
 
                 # Kill the main process
-                Stop-Process -Id $process.Id -Force
+                Stop-Process -Id $process.Id -Force -Confirm:$false
                 $result.ProcessesKilled++
                 Write-ApolloLogInternal -Message "Successfully killed PID $($process.Id)" -Level "DEBUG" -Category "ProcessCleanup"
 
